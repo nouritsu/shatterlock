@@ -1,0 +1,159 @@
+#!/usr/bin/env sh
+# shatterlock: thin CLI over the resident Quickshell daemon.
+set -eu
+
+here=$(cd "$(dirname "$0")/.." && pwd)
+cfgdir="${SHATTERLOCK_CONFIG_DIR:-$here/src}"
+
+usage() {
+    cat <<'EOF'
+usage: shatterlock <command> [options]
+
+commands:
+  daemon [--foreground]   start the resident instance (no-op if already running);
+                          open/toggle also start it when it isn't running
+  open | toggle [opts]    open (or toggle) the rift on the focused output
+  close                   close the rift
+  lock [--preview|--now]  lock the session (--preview: show the lock screen without locking;
+                          --now: no animation, as before sleep)
+  reload                  re-read config.json and shaders
+  config [opts]           print the config an open with these options would use
+  status                  daemon state and the focused output
+  stats                   timings of the last open (debugging)
+  compile <file.frag>     compile a custom slot shader and print any errors
+
+options for open/toggle (apply to that one open only):
+  --actions a,b,c         actions to show, in order
+  --seed N|random         crack seed
+  --corners bl-tr|tl-br   crack direction (corner to corner)
+  --width PX              gap between the halves
+  --background NAME       background slot (built-in name, shader file, or random)
+  --edge NAME             edge slot
+  --opening NAME          opening slot
+  --dry-run               log commands instead of running them
+EOF
+}
+
+die() { echo "shatterlock: $*" >&2; exit 2; }
+
+json_str() { printf '"%s"' "$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g')"; }
+
+# Turn open/toggle flags into the JSON override object the daemon merges over config.json.
+overrides() {
+    out=""
+    add() { out="${out:+$out,}$1"; }
+    while [ $# -gt 0 ]; do
+        case $1 in
+            --actions)
+                [ $# -ge 2 ] || die "--actions needs a value"
+                list=$(printf '%s\n' "$2" | tr ',' '\n' | while read -r a; do [ -n "$a" ] && json_str "$a" && printf ','; done)
+                add "\"actions\":[${list%,}]"; shift 2 ;;
+            --seed)
+                [ $# -ge 2 ] || die "--seed needs a value"
+                case $2 in
+                    random) add '"rift.seed":"random"' ;;
+                    *[!0-9]*|'') die "--seed must be a number or 'random'" ;;
+                    *) add "\"rift.seed\":$2" ;;
+                esac; shift 2 ;;
+            --corners)
+                [ $# -ge 2 ] || die "--corners needs a value"
+                case $2 in bl-tr|tl-br) ;; *) die "--corners must be bl-tr or tl-br" ;; esac
+                add "\"rift.corners\":$(json_str "$2")"; shift 2 ;;
+            --width)
+                [ $# -ge 2 ] || die "--width needs a value"
+                case $2 in *[!0-9]*|'') die "--width must be a number" ;; esac
+                add "\"rift.width\":$2"; shift 2 ;;
+            --background|--edge|--opening)
+                [ $# -ge 2 ] || die "$1 needs a value"
+                add "\"fx.${1#--}\":$(json_str "$2")"; shift 2 ;;
+            --dry-run)
+                add '"dryRun":true'; shift ;;
+            -h|--help) usage; exit 0 ;;
+            *) die "unknown option: $1" ;;
+        esac
+    done
+    printf '{%s}' "$out"
+}
+
+sock="${XDG_RUNTIME_DIR:-/tmp}/shatterlock.sock"
+
+start_daemon() { # [--foreground]
+    # Qt picks the basic render loop on NVIDIA/Wayland, which caps animations at 60 fps.
+    export QSG_RENDER_LOOP="${QSG_RENDER_LOOP:-threaded}"
+    # Every client that hangs up after sending its line would be logged as a socket error.
+    export QT_LOGGING_RULES="${QT_LOGGING_RULES:+$QT_LOGGING_RULES;}quickshell.io.socket.warning=false"
+    # After an upgrade the binds point at the new build: retire a daemon left from an older one.
+    for pid in $(pgrep -f "share/shatterlock/src" || true); do
+        case "$(tr '\0' ' ' </proc/"$pid"/cmdline 2>/dev/null)" in
+            *"-p $cfgdir "* | *"-p $cfgdir") ;;
+            quickshell\ -p\ /nix/store/*) kill "$pid" ;;
+        esac
+    done
+    if [ "${1:-}" = --foreground ]; then
+        exec quickshell -p "$cfgdir" --no-duplicate
+    fi
+    quickshell -p "$cfgdir" --no-duplicate --daemonize
+}
+
+# One line over the daemon's socket (~5 ms).
+via_socket() {
+    [ -S "$sock" ] && command -v nc >/dev/null 2>&1 && printf '%s\n' "$*" | nc -NU "$sock" 2>/dev/null
+}
+
+# Send a command to the daemon: over its socket, else through `quickshell ipc` (~50 ms). If the
+# daemon isn't running (never started, or it crashed), open/toggle start it and try again.
+send() { # <command> [json]
+    # Only talk to a daemon of this build: after an upgrade an older one may still hold the socket.
+    # The daemon writes its own config path next to the socket.
+    if [ "$(cat "$sock.owner" 2>/dev/null)" = "$cfgdir" ]; then
+        via_socket "$@" && return 0
+        quickshell ipc -p "$cfgdir" call rift "$@" >/dev/null 2>&1 && return 0
+    fi
+    case $1 in close | reload) return 0 ;; esac
+    start_daemon >/dev/null 2>&1
+    for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+        sleep 0.15
+        via_socket "$@" && return 0
+    done
+    die "the daemon didn't start; see 'quickshell log -p $cfgdir'"
+}
+
+ipc() {
+    quickshell ipc -p "$cfgdir" call rift "$@" ||
+        die "is the daemon running? start it with 'shatterlock daemon'"
+}
+
+cmd=${1:-}
+[ $# -gt 0 ] && shift
+
+case $cmd in
+    daemon)
+        start_daemon "$@" ;;
+    open|toggle)
+        send "$cmd" "$(overrides "$@")" ;;
+    close|reload)
+        send "$cmd" ;;
+    lock)
+        opts=""
+        for a in "$@"; do
+            case $a in
+                --preview) opts="${opts:+$opts,}\"preview\":true" ;;
+                --now) opts="${opts:+$opts,}\"now\":true" ;;
+                *) die "lock takes --preview and --now" ;;
+            esac
+        done
+        send lock "{$opts}" ;;
+    config)
+        ipc config "$(overrides "$@")" ;;
+    stats|status)
+        ipc "$cmd" ;;
+    compile)
+        [ $# -eq 1 ] || die "usage: shatterlock compile <file.frag>"
+        out=$("$here/scripts/compile-shader" "$1" "${SHATTERLOCK_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/shatterlock}/qsb") ||
+            die "$1 failed to compile (errors above; line numbers are in your file)"
+        echo "compiled $1 -> $out" ;;
+    -h|--help|help|'')
+        usage ;;
+    *)
+        die "unknown command: $cmd (see --help)" ;;
+esac
