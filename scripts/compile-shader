@@ -1,0 +1,24 @@
+#!/usr/bin/env sh
+# compile-shader <file.frag> <outdir>
+#
+# Wrap a slot shader with the prelude, compile it with qsb and print the path of the result.
+# The file name carries a hash of the source: Qt caches shaders by path, so a rebuilt shader
+# needs a new one to show up. Compiler errors go to stderr.
+set -eu
+
+[ $# -eq 2 ] || { echo "usage: compile-shader <file.frag> <outdir>" >&2; exit 2; }
+
+here=$(cd "$(dirname "$0")/.." && pwd)
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+"$here/scripts/wrap-shader" "$1" >"$tmp/shader.frag"
+hash=$(sha256sum "$tmp/shader.frag" | cut -c1-12)
+mkdir -p "$2"
+out="$2/$(basename "$1" .frag)-$hash.qsb"
+
+if [ ! -e "$out" ]; then
+    qsb --glsl "300 es,330" -o "$tmp/shader.qsb" "$tmp/shader.frag" >&2
+    mv "$tmp/shader.qsb" "$out"
+fi
+echo "$out"
