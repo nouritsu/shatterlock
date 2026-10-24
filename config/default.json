@@ -86,6 +86,7 @@
     "showMedia": true
   },
   "idle": "unmapped",
+  "live": false,
   "dryRun": false,
   "motion": "full"
 }

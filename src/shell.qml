@@ -272,6 +272,8 @@ ShellRoot {
             return JSON.stringify(Object.assign({
                 shaderTime: rift.time,
                 openFrames: rift.openFrames,
+                live: rift.live,
+                capturing: rift.capturingLive,
                 fx: rift.cfg.fxChosen,
                 geometry: {
                     screen: rift.screen ? [rift.screen.name, rift.screen.width, rift.screen.height, rift.screen.devicePixelRatio] : null,
@@ -296,6 +298,7 @@ ShellRoot {
                 configPath: Config.userPath,
                 packagedSettings: Config.packagedPath,
                 configReady: Config.ready,
+                live: Config.current.live ?? false,
                 accent: Theme.accent.toString(),
                 capabilities: runner.capabilities,
                 runnerBusy: runner.busy,

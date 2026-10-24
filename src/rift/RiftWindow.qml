@@ -8,6 +8,10 @@ import "../lock"
 // Full-screen overlay for one output. Stays unmapped until open() (unless keepMapped); the
 // snapshot is taken before anything of ours is visible, so it never captures itself.
 //
+// Live mode (config "live") keeps capturing while the rift is up, so the halves show the screen
+// as it carries on. That needs niri's `hide-from-own-capture` layer rule, which leaves this window
+// out of its own captures; without it the halves would show the rift inside themselves.
+//
 // Screencopy needs the window's graphics context, which only exists once the window has been
 // shown, so the window maps itself for a couple of transparent, click-through frames at startup
 // ("warming") before hiding.
@@ -116,6 +120,12 @@ PanelWindow {
     property real jolt: 0          // px, the halves jerking apart and back (wrong password)
     readonly property vector2d offA: normal.times(shake - jolt - 0.5 * gap * progress)
     readonly property vector2d offB: normal.times(shake + jolt + 0.5 * gap * progress)
+
+    // The halves follow the live screen (config "live"), except from the Lock press until the
+    // session is unlocked again: the lock screen keeps the frame from the press. A rift opened
+    // straight into locking (a bind, idle, logind) never goes live before it.
+    readonly property bool live: cfg.live === true
+    readonly property bool capturingLive: live && (phase === "unlocking" || phase === "closing" || (active && !lockAfterOpen))
 
     // Timing of the last open, ms since the epoch (for `shatterlock stats`).
     property var timings: ({})
@@ -281,7 +291,7 @@ PanelWindow {
     ScreencopyView {
         id: snap
         anchors.fill: parent
-        live: false
+        live: win.capturingLive
         paintCursor: false
 
         onHasContentChanged: {
@@ -411,8 +421,11 @@ PanelWindow {
             seal(false);
     }
 
-    // Lock: the menu goes, the rift widens, the blur wave runs out from its edges and the snapshot
-    // is copied for the lock surface. sealed() fires once both are done. `now`: all at once.
+    // Lock: the menu goes, the rift widens, the blur wave runs out from its edges, then the snapshot
+    // is copied for the lock surface and sealed() fires. `now`: all at once.
+    //
+    // The copy waits for the wave so that it matches what the rift shows: a live capture still in
+    // flight at the press can land a frame later.
     function seal(now) {
         if (phase === "idle" || phase === "warming" || lockPhase)
             return;
@@ -423,11 +436,7 @@ PanelWindow {
         timings.sealStarted = Date.now();
         sealWaveDone = false;
         sealUrl = "";
-        snap.grabToImage(result => {
-            win.grabResult = result;
-            win.sealUrl = result.url.toString();
-            win.checkSealed();
-        }, snap.sourceSize);
+        grabResult = null;
         if (now) {
             menu.appear = 0;
             progress = 1;
@@ -442,9 +451,20 @@ PanelWindow {
     }
 
     function checkSealed() {
-        if (phase === "sealing" && sealWaveDone && sealUrl !== "") {
+        if (phase !== "sealing" || !sealWaveDone)
+            return;
+        if (sealUrl !== "") {
             timings.sealed = Date.now();
             sealed(sealUrl);
+        } else if (grabResult === null) {
+            grabResult = {}; // in flight
+            snap.grabToImage(result => {
+                if (win.phase !== "sealing")
+                    return;
+                win.grabResult = result;
+                win.sealUrl = result.url.toString();
+                win.checkSealed();
+            }, snap.sourceSize);
         }
     }
 
