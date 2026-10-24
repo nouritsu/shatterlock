@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Aneesh Bhave <aneesh1701@gmail.com>
+Date: Sun, 25 Oct 2026 12:00:00 +0000
+Subject: [PATCH 2/2] wiki: Document hide-from-own-capture
+
+---
+ docs/wiki/Configuration:-Layer-Rules.md | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
+
+diff --git a/docs/wiki/Configuration:-Layer-Rules.md b/docs/wiki/Configuration:-Layer-Rules.md
+index 0b2ccf3..ca9e49a 100644
+--- a/docs/wiki/Configuration:-Layer-Rules.md
++++ b/docs/wiki/Configuration:-Layer-Rules.md
+@@ -20,6 +20,7 @@ layer-rule {
+     opacity 0.5
+     block-out-from "screencast"
+     // block-out-from "screen-capture"
++    hide-from-own-capture true
+ 
+     shadow {
+         on
+@@ -129,6 +130,27 @@ layer-rule {
+ }
+ ```
+ 
++#### `hide-from-own-capture`
++
++<sup>Since: next release</sup>
++
++Set to `true` to leave the surface and its popups out of screen captures made by the client that owns it.
++Captures made by everyone else still show it as usual.
++
++This is for overlays that draw something based on a live capture of the screen underneath them, like a magnifier or a screen effect.
++Without this rule, such an overlay would see itself in its own capture.
++
++It applies to the wlr-screencopy and ext-image-copy-capture protocols.
++
++```kdl
++// Let a magnifier capture the screen under it without seeing itself.
++layer-rule {
++    match namespace="^magnifier$"
++
++    hide-from-own-capture true
++}
++```
++
+ #### `opacity`
+ 
+ Set the opacity of the surface.
