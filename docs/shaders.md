@@ -57,7 +57,7 @@ blended over what's below.
 | `uMouse` | vec2 | cursor position, px |
 | `uHover` | float | highlighted action index, −1 for none |
 | `uAccent`, `uVoid` | vec4 | theme colours (premultiplied) |
-| `uSnapshot` | sampler2D | the frozen screen |
+| `uSnapshot` | sampler2D | the screen: frozen, or live with `"live": true` |
 | `uSdf` | sampler2D | the crack field (use the helpers below) |
 | `uSource` | sampler2D | opening slot: the rift as composited so far |
 
@@ -67,7 +67,7 @@ blended over what's below.
 |---|---|
 | `riftDist(uv)` | signed distance to the nearest broken edge: > 0 inside the rift, < 0 on the halves |
 | `riftUV(uv)` | rift coordinates: x along the crack 0 … 1, y across it −1 (one edge) … 1 (the other) |
-| `snapshot(uv)` | the frozen screen as displayed (each half moved; nearest edge inside the rift) |
+| `snapshot(uv)` | the screen as displayed (each half moved; nearest edge inside the rift) |
 | `crackAt(px)` | raw crack field of the closed screen (r distance, g along, b branches) |
 | `toPx(uv)`, `toUv(px)` | convert between uv and pixels |
 | `accent()` | accent colour |

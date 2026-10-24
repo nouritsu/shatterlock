@@ -71,6 +71,7 @@ re-read whenever it changes. Unknown keys and wrong types are logged and fall ba
 | `lock.beforeSleep` | `true` | lock before suspend/hibernate (holds a logind delay inhibitor) |
 | `lock.timeFormat`, `lock.dateFormat`, `lock.showUser`, `lock.showStatus`, `lock.showMedia` | | what the lock screen shows |
 | `idle` | `unmapped` | `mapped` for faster opens (see docs/niri.md) |
+| `live` | `false` | halves follow the live screen; needs the niri patch (see docs/niri.md) |
 | `motion` | `full` | `reduced`: no overshoot, shake, spreading crack or opening effects |
 | `dryRun` | `false` | log commands instead of running them |
 
@@ -80,16 +81,16 @@ re-read whenever it changes. Unknown keys and wrong types are logged and fall ba
 nix develop                     # quickshell, qsb, qmllint, Material Symbols
 ./scripts/build-shaders
 nix run .#dev                   # run the working tree in the foreground
-nix flake check                 # builds the package and compiles every shader
+nix flake check                 # builds the package, compiles every shader, applies the niri patch
 ```
 
 `docs/spike-results.md` has the measurements behind the design (latency, frame pacing, why the
-halves are a snapshot).
+halves are a snapshot on stock niri).
 
 ## Status
 
-Working: the rift, menu, actions, effects and custom shaders, packaging, and the lock screen
-(ext-session-lock + PAM, blur wave, idle and before-sleep locking). Planned: truly live halves
-through a niri patch.
+Working: the rift, menu, actions, effects and custom shaders, packaging, the lock screen
+(ext-session-lock + PAM, blur wave, idle and before-sleep locking), and live halves on a niri
+with the `hide-from-own-capture` patch (`nix/niri/`).
 
 MIT licence.

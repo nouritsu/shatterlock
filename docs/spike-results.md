@@ -66,3 +66,21 @@ Qt picks the basic loop on this NVIDIA/Wayland setup. The daemon defaults to `th
   netcat (`nc -NU`), falling back to `quickshell ipc call` when the socket is missing.
 - The daemon defaults to `QSG_RENDER_LOOP=threaded`.
 - Default crack direction `bl-tr` (halves top-left and bottom-right).
+
+## Live halves (patched niri)
+
+Patched niri (`nix/niri/`), nested in a winit window, with the `hide-from-own-capture` rule and
+`"live": true`:
+
+- Quickshell's `ScreencopyView` captures over ext-image-copy-capture. With the rule, its own
+  capture leaves the rift out: the halves show the screen beneath (a moving marker keeps moving in
+  them), with no rift inside them. grim, a different client, still sees the rift.
+- Frame pacing while opening is the same with live on and off (the nested window runs at ~110
+  fps, so its 12 ms frames say nothing about 165 Hz).
+- The first frame of a live open took ~20 ms nested, against < 9 ms for a snapshot open,
+  probably the second capture buffer arriving. To measure on DP-3.
+- The capture is off from the Lock press until unlock (checked through `stats.capturing`), and back on
+  while the fog clears.
+
+Not yet measured: the extra GPU time niri spends rendering the capture each frame, and the lag
+of the halves behind the screen, on DP-3 at 165 Hz.
