@@ -1,0 +1,39 @@
+#!/usr/bin/env sh
+# Compile every shader under src/shaders into src/shaders/qsb/<name>.qsb.
+#
+# - src/shaders/*.frag           plain Qt 440 shaders (the crack-field bake), compiled as-is
+# - src/shaders/builtin/*.frag   slot effects written against the shatterlock contract
+# - src/shaders/layers/*.frag    the rift's own layers (halves), same contract
+# Both of the latter are wrapped with prelude.glsl before compiling.
+set -eu
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+src="$root/src/shaders"
+out="$src/qsb"
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+mkdir -p "$out"
+status=0
+
+compile() { # <input.frag> <output.qsb>
+    if ! qsb --glsl "300 es,330" -o "$2" "$1" 2>"$tmp/err"; then
+        echo "shader error: $1" >&2
+        cat "$tmp/err" >&2
+        status=1
+    fi
+}
+
+for f in "$src"/*.frag; do
+    [ -e "$f" ] || continue
+    compile "$f" "$out/$(basename "$f" .frag).qsb"
+done
+
+for f in "$src"/builtin/*.frag "$src"/layers/*.frag; do
+    [ -e "$f" ] || continue
+    name=$(basename "$f" .frag)
+    "$root/scripts/wrap-shader" "$f" >"$tmp/$name.frag"
+    compile "$tmp/$name.frag" "$out/$name.qsb"
+done
+
+exit $status
