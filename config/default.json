@@ -1,0 +1,91 @@
+{
+  "actions": ["lock", "suspend", "logout", "restart", "shutdown", "hibernate", "firmware"],
+  "actionDefs": {
+    "lock": {
+      "label": "Lock", "icon": "lock", "key": "L", "confirm": "instant",
+      "command": ["loginctl", "lock-session"],
+      "after": "vanish", "status": "", "requires": ""
+    },
+    "suspend": {
+      "label": "Suspend", "icon": "bedtime", "key": "U", "confirm": "instant",
+      "command": ["systemctl", "suspend"],
+      "after": "vanish", "status": "", "requires": ""
+    },
+    "logout": {
+      "label": "Log out", "icon": "logout", "key": "O", "confirm": "hold",
+      "command": ["niri", "msg", "action", "quit", "--skip-confirmation"],
+      "after": "stay", "status": "Logging out…", "requires": ""
+    },
+    "restart": {
+      "label": "Restart", "icon": "restart_alt", "key": "R", "confirm": "hold",
+      "command": ["systemctl", "reboot"],
+      "after": "stay", "status": "Restarting…", "requires": ""
+    },
+    "shutdown": {
+      "label": "Shutdown", "icon": "power_settings_new", "key": "S", "confirm": "hold",
+      "command": ["systemctl", "poweroff"],
+      "after": "stay", "status": "Shutting down…", "requires": ""
+    },
+    "hibernate": {
+      "label": "Hibernate", "icon": "downloading", "key": "H", "confirm": "hold",
+      "command": ["systemctl", "hibernate"],
+      "after": "vanish", "status": "", "requires": "CanHibernate"
+    },
+    "firmware": {
+      "label": "Firmware", "icon": "memory", "key": "F", "confirm": "hold",
+      "command": ["systemctl", "reboot", "--firmware-setup"],
+      "after": "stay", "status": "Restarting into firmware…", "requires": "CanRebootToFirmwareSetup"
+    }
+  },
+  "rift": {
+    "corners": "bl-tr",
+    "seed": 1701,
+    "width": 170,
+    "jaggedness": 0.6,
+    "branches": true
+  },
+  "animation": {
+    "crackSpread": true,
+    "spreadMs": 120,
+    "openMs": 330,
+    "overshoot": 0.08,
+    "closeMs": 200,
+    "holdMs": 600
+  },
+  "fx": {
+    "background": "void",
+    "edge": "glow",
+    "opening": "none",
+    "pool": {
+      "background": ["void"],
+      "edge": ["glow", "arcs", "molten", "glitch"],
+      "opening": ["none", "shards", "glitch", "molten"]
+    },
+    "renderScale": { "background": 1.0, "edge": 1.0, "opening": 1.0 },
+    "image": { "path": "", "fit": "cover", "blur": 0.0, "darken": 0.4 }
+  },
+  "theme": {
+    "accent": "auto",
+    "voidColor": "#05040a",
+    "font": "",
+    "iconFont": "Material Symbols Rounded"
+  },
+  "lock": {
+    "enabled": true,
+    "pamService": "shatterlock",
+    "fingerprintService": "shatterlock-fingerprint",
+    "blur": "void",
+    "width": 250,
+    "waveMs": 900,
+    "idle": { "ac": 0, "battery": 0 },
+    "beforeSleep": true,
+    "timeFormat": "HH:mm",
+    "dateFormat": "dddd, d MMMM",
+    "showUser": true,
+    "showStatus": true,
+    "showMedia": true
+  },
+  "idle": "unmapped",
+  "dryRun": false,
+  "motion": "full"
+}
