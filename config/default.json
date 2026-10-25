@@ -7,24 +7,24 @@
       "after": "vanish", "status": "", "requires": ""
     },
     "suspend": {
-      "label": "Suspend", "icon": "bedtime", "key": "U", "confirm": "instant",
+      "label": "Suspend", "icon": "bedtime", "key": "S", "confirm": "instant",
       "command": ["systemctl", "suspend"],
       "after": "vanish", "status": "", "requires": ""
     },
     "logout": {
-      "label": "Log out", "icon": "logout", "key": "O", "confirm": "hold",
+      "label": "Log Out", "icon": "logout", "key": "X", "confirm": "hold",
       "command": ["niri", "msg", "action", "quit", "--skip-confirmation"],
       "after": "stay", "status": "Logging out…", "requires": ""
     },
     "restart": {
-      "label": "Restart", "icon": "restart_alt", "key": "R", "confirm": "hold",
+      "label": "Reboot", "icon": "restart_alt", "key": "R", "confirm": "hold",
       "command": ["systemctl", "reboot"],
-      "after": "stay", "status": "Restarting…", "requires": ""
+      "after": "stay", "status": "Rebooting…", "requires": ""
     },
     "shutdown": {
-      "label": "Shutdown", "icon": "power_settings_new", "key": "S", "confirm": "hold",
+      "label": "Power Off", "icon": "power_settings_new", "key": "P", "confirm": "hold",
       "command": ["systemctl", "poweroff"],
-      "after": "stay", "status": "Shutting down…", "requires": ""
+      "after": "stay", "status": "Powering off…", "requires": ""
     },
     "hibernate": {
       "label": "Hibernate", "icon": "downloading", "key": "H", "confirm": "hold",
@@ -34,7 +34,7 @@
     "firmware": {
       "label": "Firmware", "icon": "memory", "key": "F", "confirm": "hold",
       "command": ["systemctl", "reboot", "--firmware-setup"],
-      "after": "stay", "status": "Restarting into firmware…", "requires": "CanRebootToFirmwareSetup"
+      "after": "stay", "status": "Rebooting into firmware…", "requires": "CanRebootToFirmwareSetup"
     }
   },
   "rift": {

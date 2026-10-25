@@ -1,6 +1,6 @@
 import QtQuick
 
-// A line of text laid along the rift: what is happening ("Shutting down…") or what went wrong.
+// A line of text laid along the rift: what is happening ("Powering off…") or what went wrong.
 Item {
     id: status
 
