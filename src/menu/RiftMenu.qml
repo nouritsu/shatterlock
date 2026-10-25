@@ -3,14 +3,15 @@ pragma ComponentBehavior: Bound
 import QtQuick
 
 // The actions inside the rift: one button per action, centred on the crack and turned to its
-// angle. Owns selection and hold-to-confirm; emits fire(id) when an action should run.
+// angle. Owns selection and hold-to-confirm; a chosen action pulses once, then fire(id) runs it.
 Item {
     id: menu
 
-    property var actions: []   // [{ id, label, icon, key, confirm }]
+    property var actions: []   // [{ id, label, icon, key, confirm, after }]
     property var points: []    // button centres, px
     property real angle: 0     // degrees, direction of the rift
     property int holdMs: 600
+    property int pulseMs: 240
     property real appear: 0    // 0..1, staggered across the buttons
     property bool interactive: false
 
@@ -23,6 +24,19 @@ Item {
     property var holdSource: null // key code or "mouse" that started the hold
     property real holdProgress: 0
 
+    // The chosen action pulses before it runs; nothing else can be chosen meanwhile.
+    property int pulseIndex: -1
+    property real pulse: 0
+    property bool pulseFromHold: false
+    property var pulseSource: null  // key code or "mouse" that chose it
+    property bool sourceDown: false // that key is still held
+    property bool awaitingRelease: false
+    readonly property bool committed: pulseIndex >= 0
+
+    // The button drawing energy from the edges (shaders' uEnergy): which, and how much.
+    readonly property int energyIndex: pulseIndex >= 0 ? pulseIndex : holdIndex
+    readonly property real charge: pulseIndex >= 0 ? (pulseFromHold ? 1 - pulse : 0) : (holdIndex >= 0 ? holdProgress : 0)
+
     signal fire(string id)
 
     function reset() {
@@ -32,10 +46,22 @@ Item {
         holdIndex = -1;
         holdSource = null;
         holdProgress = 0;
+        settle();
+    }
+
+    // The chosen action is done with (it failed and the menu is back): choosing works again.
+    function settle() {
+        pulseAnim.stop();
+        pulseIndex = -1;
+        pulse = 0;
+        pulseFromHold = false;
+        pulseSource = null;
+        sourceDown = false;
+        awaitingRelease = false;
     }
 
     function step(delta) {
-        if (actions.length === 0)
+        if (actions.length === 0 || committed)
             return;
         if (selected < 0)
             selected = delta > 0 ? 0 : actions.length - 1;
@@ -60,13 +86,13 @@ Item {
         return -1;
     }
 
-    // Instant actions fire right away; the others start filling and fire when full.
+    // Instant actions pulse right away; the others start filling and pulse when full.
     function press(index, source) {
-        if (!interactive || index < 0 || index >= actions.length)
+        if (!interactive || committed || index < 0 || index >= actions.length)
             return;
         selected = index;
         if (actions[index].confirm !== "hold") {
-            fire(actions[index].id);
+            startPulse(index, source, false);
             return;
         }
         cancelAnim.stop();
@@ -76,10 +102,48 @@ Item {
     }
 
     function release(source) {
+        if (committed) {
+            if (source === pulseSource) {
+                sourceDown = false;
+                if (awaitingRelease)
+                    finish();
+            }
+            return;
+        }
         if (holdIndex < 0 || source !== holdSource || !holdAnim.running)
             return;
         holdAnim.stop();
         cancelAnim.restart();
+    }
+
+    function startPulse(index, source, fromHold) {
+        holdAnim.stop();
+        cancelAnim.stop();
+        holdIndex = -1;
+        holdSource = null;
+        holdProgress = 0;
+        pulseIndex = index;
+        pulseFromHold = fromHold;
+        pulseSource = source;
+        sourceDown = source !== "mouse";
+        awaitingRelease = false;
+        pulseAnim.restart();
+    }
+
+    // Actions that take the rift away run once the key that chose them is up: its release would
+    // otherwise land in the window underneath, or wake a machine that has just gone to sleep.
+    function pulseDone() {
+        if (sourceDown && actions[pulseIndex]?.after === "vanish")
+            awaitingRelease = true;
+        else
+            finish();
+    }
+
+    function finish() {
+        const id = actions[pulseIndex]?.id;
+        awaitingRelease = false;
+        if (id)
+            fire(id);
     }
 
     Repeater {
@@ -100,7 +164,8 @@ Item {
             hotkey: modelData.key ?? ""
             needsHold: modelData.confirm === "hold"
             selected: menu.selected === index
-            holdProgress: menu.holdIndex === index ? menu.holdProgress : 0
+            holdProgress: menu.energyIndex === index ? menu.charge : 0
+            pulse: menu.pulseIndex === index ? menu.pulse : 0
             appear: Math.max(0, Math.min(1, menu.appear * (1 + stagger * (menu.actions.length - 1)) - stagger * index))
             accent: menu.accent
             iconFamily: menu.iconFamily
@@ -115,14 +180,7 @@ Item {
         from: 0
         to: 1
         duration: menu.holdMs
-        onFinished: {
-            const id = menu.actions[menu.holdIndex]?.id;
-            menu.holdIndex = -1;
-            menu.holdSource = null;
-            menu.holdProgress = 0;
-            if (id)
-                menu.fire(id);
-        }
+        onFinished: menu.startPulse(menu.holdIndex, menu.holdSource, true)
     }
 
     NumberAnimation {
@@ -136,5 +194,16 @@ Item {
             menu.holdIndex = -1;
             menu.holdSource = null;
         }
+    }
+
+    NumberAnimation {
+        id: pulseAnim
+        target: menu
+        property: "pulse"
+        from: 0
+        to: 1
+        duration: menu.pulseMs
+        easing.type: Easing.OutSine
+        onFinished: menu.pulseDone()
     }
 }

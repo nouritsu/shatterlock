@@ -33,6 +33,8 @@ layout(std140, binding = 0) uniform buf {
     float uObscureStyle; // 0 void fog, 1 frosted, 2 glass
     vec4 uCrackLine;    // the straight line the crack runs along: a corner it ends in (xy), and
                         // the unit normal pointing into half B (zw)
+    vec4 uEnergy;       // the action button drawing energy from the edges: its centre (xy, px),
+                        // hold charge 0..1 (z), press pulse 0..1 (w); z = w = 0 when none
 };
 
 layout(binding = 1) uniform sampler2D uSnapshot; // the frozen screen

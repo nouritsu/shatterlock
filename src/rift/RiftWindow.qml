@@ -4,6 +4,7 @@ import Quickshell.Wayland
 import "crack.js" as Crack
 import "../menu"
 import "../lock"
+import "../fx"
 
 // Full-screen overlay for one output. Stays unmapped until open() (unless keepMapped); the
 // snapshot is taken before anything of ours is visible, so it never captures itself.
@@ -103,6 +104,11 @@ PanelWindow {
     property real time: 0          // seconds since the opening started
     property vector2d mouse: Qt.vector2d(-1, -1)
     property real hover: -1
+    // The button drawing energy from the edges: centre (px), hold charge, press pulse.
+    readonly property vector4d energy: {
+        const p = crack?.anchorPoints?.[menu.energyIndex];
+        return p ? Qt.vector4d(p.x, p.y, menu.charge, menu.pulse) : Qt.vector4d(-1e4, -1e4, 0, 0);
+    }
     readonly property var snapshot: snapTexture
     readonly property size snapshotSize: snap.sourceSize
 
@@ -125,7 +131,8 @@ PanelWindow {
     // session is unlocked again: the lock screen keeps the frame from the press. A rift opened
     // straight into locking (a bind, idle, logind) never goes live before it.
     readonly property bool live: cfg.live === true
-    readonly property bool capturingLive: live && (phase === "unlocking" || phase === "closing" || (active && !lockAfterOpen))
+    readonly property bool lockPressed: menu.committed && menuActions[menu.pulseIndex]?.id === "lock" && (cfg.lock?.enabled ?? true)
+    readonly property bool capturingLive: live && (phase === "unlocking" || phase === "closing" || (active && !lockAfterOpen && !lockPressed))
 
     // Timing of the last open, ms since the epoch (for `shatterlock stats`).
     property var timings: ({})
@@ -207,6 +214,8 @@ PanelWindow {
         timings.closedAt = Date.now();
         openSeq.stop();
         reopenSeq.stop();
+        menuFade.stop();
+        menu.settle();
         phase = "closing";
         closeSeq.start();
     }
@@ -233,6 +242,8 @@ PanelWindow {
         openSeq.stop();
         reopenSeq.stop();
         closeSeq.stop();
+        menuFade.stop();
+        menu.settle();
         finishClose();
     }
 
@@ -323,6 +334,17 @@ PanelWindow {
         rift: win
         snapshotSource: snapTexture
         warming: win.phase === "warming"
+    }
+
+    // A held or pressed button drawing energy from the edges, under the buttons. Drawn once while
+    // warming so its pipeline exists before the first press.
+    SlotLayer {
+        rift: win
+        view: view
+        visible: win.energy.z > 0 || (win.energy.w > 0 && win.energy.w < 1) || win.phase === "warming"
+        opacity: win.phase === "warming" ? 0.002 : 1
+        uSource: view.snapshot
+        fragmentShader: Qt.resolvedUrl("../shaders/qsb/charge.qsb")
     }
 
     onPhaseChanged: {
@@ -431,6 +453,7 @@ PanelWindow {
         openSeq.stop();
         reopenSeq.stop();
         closeSeq.stop();
+        menuFade.stop();
         phase = "sealing";
         timings.sealStarted = Date.now();
         sealWaveDone = false;
@@ -771,7 +794,8 @@ PanelWindow {
         actions: win.menuActions
         points: win.crack?.anchorPoints ?? []
         angle: win.crack?.angle ?? 0
-        holdMs: win.cfg.animation?.holdMs ?? 600
+        holdMs: (win.cfg.animation?.holdMs ?? 600) * win.slowmo
+        pulseMs: 240 * win.slowmo
         interactive: win.phase === "opening" || win.phase === "open"
         accent: win.accent
         iconFamily: win.iconFamily
@@ -788,7 +812,7 @@ PanelWindow {
     // (shutdown, ...) keep it, show their status, and bring the menu back if they fail.
     function fire(id) {
         const def = menuActions.find(a => a.id === id);
-        if (!def)
+        if (!def || (phase !== "opening" && phase !== "open"))
             return;
         timings.fired = id;
         if (id === "lock" && (cfg.lock?.enabled ?? true)) {
@@ -810,7 +834,7 @@ PanelWindow {
         progress = Math.max(progress, 1);
         phase = "firing";
         statusText = def.status || `${def.label}…`;
-        menu.appear = 0;
+        fadeMenu(0);
         triggered(id);
     }
 
@@ -822,13 +846,26 @@ PanelWindow {
             errorText = `${message}`;
             errorTimer.restart();
             phase = "open";
-            menu.appear = 1;
+            menu.settle();
+            fadeMenu(1);
         } else if (wasDryRun) {
             close("dry-run:" + id);
         } else {
             // The session or the machine is going away; if it hasn't after a while, step aside.
             staleTimer.restart();
         }
+    }
+
+    function fadeMenu(to) {
+        menuFade.to = to;
+        menuFade.restart();
+    }
+
+    NumberAnimation {
+        id: menuFade
+        target: menu
+        property: "appear"
+        duration: 120
     }
 
     Timer {
@@ -893,7 +930,8 @@ PanelWindow {
 
         Keys.onPressed: event => {
             event.accepted = true;
-            if (event.isAutoRepeat || win.lockPhase)
+            // A chosen action is on its way: nothing else, not even Esc.
+            if (event.isAutoRepeat || win.lockPhase || menu.committed)
                 return;
             switch (event.key) {
             case Qt.Key_Escape:
@@ -942,11 +980,11 @@ PanelWindow {
             onPositionChanged: mouse => {
                 win.mouse = Qt.vector2d(mouse.x, mouse.y);
                 hovered = menu.indexAt(mouse.x, mouse.y);
-                if (hovered >= 0)
+                if (hovered >= 0 && !menu.committed)
                     menu.selected = hovered;
             }
             onPressed: mouse => {
-                if (win.lockPhase)
+                if (win.lockPhase || menu.committed)
                     return;
                 const i = menu.indexAt(mouse.x, mouse.y);
                 if (i >= 0)

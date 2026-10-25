@@ -1,7 +1,8 @@
 import QtQuick
 
-// One action in the rift: icon over label, laid along the rift's angle by the menu. Shows the
-// selection, the hotkey, and the hold-to-confirm fill.
+// One action in the rift: icon over label, laid along the rift's angle by the menu. A soft glow
+// behind it shows the selection, swells while it is held (the rift's edges feed it, see
+// shaders/layers/charge.frag) and flashes when it pulses on the way to running.
 Item {
     id: btn
 
@@ -12,47 +13,44 @@ Item {
 
     property bool selected: false
     property real holdProgress: 0 // 0..1 while held
+    property real pulse: 0        // 0..1 while pulsing before it runs
     property real appear: 0       // 0 hidden .. 1 shown
     property color accent: "#cba6f7"
     property string iconFamily
     property string labelFamily
 
+    readonly property real swell: Math.sin(Math.PI * pulse)
+
     width: 150
     height: 96
     opacity: appear
-    scale: (0.85 + 0.15 * appear) * (selected ? 1.05 : 1)
+    scale: (0.85 + 0.15 * appear) * (selected ? 1.05 : 1) * (1 + 0.08 * holdProgress + 0.14 * swell)
 
     Behavior on scale {
+        enabled: btn.pulse === 0 && btn.holdProgress === 0
         NumberAnimation {
             duration: 120
             easing.type: Easing.OutCubic
         }
     }
 
-    Rectangle {
-        id: plate
-        anchors.fill: parent
-        radius: 18
-        color: Qt.rgba(btn.accent.r, btn.accent.g, btn.accent.b, btn.selected ? 0.16 : 0)
-        border.width: 1
-        border.color: Qt.rgba(btn.accent.r, btn.accent.g, btn.accent.b, btn.selected ? 0.6 : 0)
-
-        Behavior on color {
-            ColorAnimation {
-                duration: 120
-            }
+    property real selectGlow: selected ? 1 : 0
+    Behavior on selectGlow {
+        NumberAnimation {
+            duration: 160
+            easing.type: Easing.OutCubic
         }
     }
 
-    // Fills along the button while it is held.
-    Rectangle {
-        anchors.left: parent.left
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        width: parent.width * btn.holdProgress
-        radius: plate.radius
-        color: Qt.rgba(btn.accent.r, btn.accent.g, btn.accent.b, 0.4)
-        visible: btn.holdProgress > 0
+    ShaderEffect {
+        readonly property real grow: 1 + 0.9 * btn.holdProgress + 0.5 * btn.swell
+        anchors.centerIn: parent
+        width: 230 * grow
+        height: 130 * (1 + 0.25 * (grow - 1))
+        visible: opacity > 0
+        opacity: Math.min(1, 0.32 * btn.selectGlow + 0.55 * btn.holdProgress + 0.6 * btn.swell)
+        property color uColor: btn.accent
+        fragmentShader: Qt.resolvedUrl("../shaders/qsb/halo.qsb")
     }
 
     Column {
@@ -65,9 +63,9 @@ Item {
             font.family: btn.iconFamily
             font.pixelSize: 34
             font.variableAxes: {
-                "FILL": btn.selected ? 1 : 0
+                "FILL": btn.selected || btn.pulse > 0 ? 1 : 0
             }
-            color: btn.selected ? "#ffffff" : btn.accent
+            color: btn.selected || btn.pulse > 0 ? "#ffffff" : btn.accent
         }
 
         Text {
