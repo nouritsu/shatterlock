@@ -2,11 +2,11 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 
-// The password as orbs of energy drawn out of the rift: one per character, strung along the
-// middle of the rift and centred on it. Each new one is pulled out of both edges; backspace lets
-// the last one sink back. While the password is checked they pulse together, and once it's
-// accepted they flare and fade. On a wrong password (reject) they turn red and shoot back into the
-// edges.
+// The password as orbs of energy gathered in the rift: one per character, strung along the middle
+// of the rift and centred on it. Each new one forms from motes drifting in along the rift;
+// backspace lets the last one sink back. While the password is checked they pulse together, and
+// once it's accepted they flare and fade. On a wrong password (reject) they turn red and shoot off
+// in random directions into the rift's edges.
 Item {
     id: orbs
 
@@ -26,13 +26,13 @@ Item {
     property real throb: 0
     property real leave: leaving ? 1 : 0
 
-    // Orbs on their way back into the edges after a wrong password: [{ x, y, side, start }], start
-    // in ms; the typed ones vanish at once (`dropping`) as these take their place.
+    // Orbs on their way into the edges after a wrong password: [{ x, y, heading, distance, start,
+    // flight }] (heading in degrees from the rift's direction, times in ms); the typed ones vanish at
+    // once (`dropping`) as these take their place.
     property var flyers: []
     property bool dropping: false
     readonly property color red: "#ff4a55"
     readonly property int redMs: 90
-    readonly property int flightMs: 150
     readonly property int burstMs: 220
 
     // Screen position of the point `s` px along the middle of the rift from its centre.
@@ -44,8 +44,15 @@ Item {
         return Qt.point(p.x, p.y);
     }
 
-    // Wrong password: the orbs turn red, then shoot to alternate edges, the middle ones first.
-    // Returns where and when each one hits ([{ x, y, at }], at in s from now) for rift.reject.
+    // A screen-space offset turned into an orb's own frame (x along the rift, y across it).
+    function local(dx, dy) {
+        const a = angle * Math.PI / 180;
+        return Qt.point(dx * Math.cos(a) + dy * Math.sin(a), -dx * Math.sin(a) + dy * Math.cos(a));
+    }
+
+    // Wrong password: the orbs turn red, then shoot off at random angles (never nearly along the
+    // rift), the middle ones first, and burst where they meet an edge. Returns where and when each
+    // one hits ([{ x, y, at }], at in s from now) for rift.reject.
     function reject() {
         const crack = rift.crack;
         if (!crack || shown === 0)
@@ -54,27 +61,43 @@ Item {
         const stagger = Math.min(22, 320 / n);
         const order = [...Array(n).keys()].sort((a, b) => Math.abs(a - (n - 1) / 2) - Math.abs(b - (n - 1) / 2));
         const fly = [], hits = [];
+        let done = 0;
         for (let rank = 0; rank < n; rank++) {
             const i = order[rank];
             const p = at((i - (n - 1) / 2) * pitch);
-            const side = i % 2 === 0 ? -1 : 1;
+            const side = Math.random() < 0.5 ? -1 : 1;
+            const a = (25 + Math.random() * 130) * Math.PI / 180;
+            const dx = crack.dir.x * Math.cos(a) + crack.normal.x * side * Math.sin(a);
+            const dy = crack.dir.y * Math.cos(a) + crack.normal.y * side * Math.sin(a);
+            // Step out until the edge (the crack is jagged, so it's found rather than worked out).
+            let distance = halfGap / Math.sin(a);
+            for (let d = 0; d < 900; d += 3) {
+                if (Math.abs(crack.offsetFrom(p.x + dx * d, p.y + dy * d)) >= halfGap) {
+                    distance = d;
+                    break;
+                }
+            }
             const start = redMs + rank * stagger;
+            const flight = 150 + Math.min(120, Math.max(0, distance - halfGap) * 0.3);
             fly.push({
                 x: p.x,
                 y: p.y,
-                side: side,
-                start: start
+                heading: side * a * 180 / Math.PI,
+                distance: distance,
+                start: start,
+                flight: flight
             });
             hits.push({
-                x: p.x + crack.normal.x * side * halfGap,
-                y: p.y + crack.normal.y * side * halfGap,
-                at: (start + flightMs) * rift.slowmo / 1000
+                x: p.x + dx * distance,
+                y: p.y + dy * distance,
+                at: (start + flight) * rift.slowmo / 1000
             });
+            done = Math.max(done, start + flight + burstMs);
         }
         flyers = fly;
         dropping = true;
         Qt.callLater(() => orbs.dropping = false);
-        flyersDone.interval = (redMs + (n - 1) * stagger + flightMs + burstMs) * rift.slowmo + 50;
+        flyersDone.interval = done * rift.slowmo + 50;
         flyersDone.restart();
         return hits;
     }
@@ -116,16 +139,32 @@ Item {
             readonly property real targetS: (index - (orbs.shown - 1) / 2) * orbs.pitch
             property real s: 0
             property real presence: 0 // sinks to 0 when deleted
-            property real birth: 1    // 0 .. 1 while it is pulled out of the edges
+            property real birth: 1    // 0 .. 1 while it forms
+            property var motes: []    // where its motes start, in its own frame, and when they set off
 
-            // Sparks race in from both edges (first half), then the orb blooms (second half).
-            readonly property real race: Math.min(1, birth / 0.5)
-            readonly property real bloom: Math.max(0, Math.min(1, (birth - 0.4) / 0.6))
+            // The motes drift in (most of the way), then the orb blooms where they meet.
+            readonly property real bloom: Math.max(0, Math.min(1, (birth - 0.55) / 0.45))
             readonly property real swell: bloom < 1 ? 1 + 0.35 * Math.sin(Math.PI * bloom) : 1
             readonly property point p: orbs.at(s)
 
+            // Motes start at random points further along the rift, either way, and anywhere across it.
             function appear() {
                 s = targetS;
+                const crack = orbs.rift.crack;
+                const list = [];
+                for (let k = 0; crack && k < 3; k++) {
+                    const along = (Math.random() < 0.5 ? -1 : 1) * (90 + Math.random() * 230);
+                    const across = (Math.random() * 2 - 1) * 0.55 * orbs.halfGap;
+                    const from = orbs.at(s + along);
+                    const here = orbs.at(s);
+                    const l = orbs.local(from.x + crack.normal.x * across - here.x, from.y + crack.normal.y * across - here.y);
+                    list.push({
+                        x: l.x,
+                        y: l.y,
+                        delay: Math.random() * 0.2
+                    });
+                }
+                motes = list;
                 sink.stop();
                 presence = 1;
                 birthAnim.restart();
@@ -165,7 +204,7 @@ Item {
                 property: "birth"
                 from: 0
                 to: 1
-                duration: 280 * orbs.rift.slowmo
+                duration: 360 * orbs.rift.slowmo
             }
 
             NumberAnimation {
@@ -177,43 +216,36 @@ Item {
                 easing.type: Easing.InCubic
             }
 
-            // The sparks, pulled out of both edges along the normal (local y): a glowing head
-            // with a tail back to the edge it left.
+            // The motes, drifting in from where they started and shrinking into the orb.
             Repeater {
-                model: [-1, 1]
+                model: orb.motes
 
                 Item {
-                    id: spark
-                    required property int modelData
-                    readonly property real reach: orbs.halfGap * (1 - orb.race * orb.race)
-                    readonly property real tail: Math.min(60, orbs.halfGap - reach)
-                    visible: orb.race < 1
-                    opacity: 1 - 0.4 * orb.race
+                    id: mote
+                    required property var modelData
+                    readonly property real u: Math.max(0, Math.min(1, (orb.birth - modelData.delay) / 0.6))
+                    readonly property real rest: 1 - u * u * (3 - 2 * u) // of the way still to go
+                    x: modelData.x * rest
+                    y: modelData.y * rest
+                    visible: u < 1
+                    opacity: Math.min(1, u * 6)
+                    scale: 0.5 + 0.5 * rest
 
-                    Rectangle {
-                        x: -1.5
-                        y: spark.modelData > 0 ? spark.reach : -spark.reach - spark.tail
-                        width: 3
-                        height: spark.tail
-                        radius: 1.5
-                        gradient: Gradient {
-                            GradientStop {
-                                position: 0
-                                color: spark.modelData > 0 ? orbs.core : "transparent"
-                            }
-                            GradientStop {
-                                position: 1
-                                color: spark.modelData > 0 ? "transparent" : orbs.core
-                            }
-                        }
-                    }
                     ShaderEffect {
-                        x: -11
-                        y: spark.modelData * spark.reach - 11
-                        width: 22
-                        height: 22
-                        property color uColor: orbs.core
+                        x: -14
+                        y: -14
+                        width: 28
+                        height: 28
+                        property color uColor: orbs.accent
                         fragmentShader: Qt.resolvedUrl("../shaders/qsb/halo.qsb")
+                    }
+                    Rectangle {
+                        x: -3
+                        y: -3
+                        width: 6
+                        height: 6
+                        radius: 3
+                        color: orbs.core
                     }
                 }
             }
@@ -257,47 +289,50 @@ Item {
 
             required property var modelData
             property real ms: 0 // into its own timeline: red, then flight, then burst
+            readonly property real end: modelData.start + modelData.flight + orbs.burstMs
             readonly property real redness: Math.min(1, ms / orbs.redMs)
-            readonly property real flight: Math.max(0, Math.min(1, (ms - modelData.start) / orbs.flightMs))
-            readonly property real burst: Math.max(0, Math.min(1, (ms - modelData.start - orbs.flightMs) / orbs.burstMs))
-            readonly property real travelled: orbs.halfGap * flight * flight
+            readonly property real flight: Math.max(0, Math.min(1, (ms - modelData.start) / modelData.flight))
+            readonly property real burst: Math.max(0, Math.min(1, (ms - modelData.start - modelData.flight) / orbs.burstMs))
+            readonly property real travelled: modelData.distance * flight * flight
             readonly property color tint: Qt.tint(orbs.core, Qt.rgba(1, 0.29, 0.33, redness))
 
+            // Turned to its heading: it flies along its own x.
             x: modelData.x
             y: modelData.y
             width: 1
             height: 1
-            rotation: orbs.angle
+            rotation: orbs.angle + modelData.heading
 
             NumberAnimation on ms {
                 from: 0
-                to: flyer.modelData.start + orbs.flightMs + orbs.burstMs
-                duration: (flyer.modelData.start + orbs.flightMs + orbs.burstMs) * orbs.rift.slowmo
+                to: flyer.end
+                duration: flyer.end * orbs.rift.slowmo
             }
 
             // A trail back along its way while it flies.
             Rectangle {
                 readonly property real length: Math.min(54, flyer.travelled)
-                x: -2
-                y: flyer.modelData.side > 0 ? flyer.travelled - length : -flyer.travelled
-                width: 4
-                height: length
+                x: flyer.travelled - length
+                y: -2
+                width: length
+                height: 4
                 radius: 2
                 visible: flyer.flight > 0 && flyer.burst === 0
                 gradient: Gradient {
+                    orientation: Gradient.Horizontal
                     GradientStop {
                         position: 0
-                        color: flyer.modelData.side > 0 ? "transparent" : orbs.red
+                        color: "transparent"
                     }
                     GradientStop {
                         position: 1
-                        color: flyer.modelData.side > 0 ? orbs.red : "transparent"
+                        color: orbs.red
                     }
                 }
             }
 
             Item {
-                y: flyer.modelData.side * flyer.travelled
+                x: flyer.travelled
                 scale: 1 + 1.8 * flyer.burst
                 opacity: 1 - flyer.burst
 
