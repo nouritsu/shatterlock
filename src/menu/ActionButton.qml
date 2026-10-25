@@ -13,6 +13,7 @@ Item {
 
     property bool selected: false
     property real holdProgress: 0 // 0..1 while held
+    property int holdLeft: -1     // ms still to hold while it is held, else -1
     property real pulse: 0        // 0..1 while pulsing before it runs
     property real appear: 0       // 0 hidden .. 1 shown
     property color accent: "#cba6f7"
@@ -20,6 +21,14 @@ Item {
     property string labelFamily
 
     readonly property real swell: Math.sin(Math.PI * pulse)
+    // "hold P", counting down while it is held: "hold P (450 ms)"
+    readonly property string hint: {
+        if (!needsHold)
+            return hotkey;
+        if (holdLeft < 0)
+            return `hold ${hotkey}`;
+        return `hold ${hotkey} (${Math.ceil(holdLeft / 10) * 10} ms)`;
+    }
 
     width: 150
     height: 96
@@ -81,7 +90,7 @@ Item {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             visible: btn.hotkey !== ""
-            text: btn.needsHold ? `hold ${btn.hotkey}` : btn.hotkey
+            text: btn.hint
             font.family: btn.labelFamily
             font.pixelSize: 11
             color: Qt.rgba(1, 1, 1, 0.45)

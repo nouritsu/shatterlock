@@ -165,6 +165,7 @@ Item {
             needsHold: modelData.confirm === "hold"
             selected: menu.selected === index
             holdProgress: menu.energyIndex === index ? menu.charge : 0
+            holdLeft: menu.holdIndex === index && holdAnim.running ? menu.holdMs * (1 - menu.holdProgress) : -1
             pulse: menu.pulseIndex === index ? menu.pulse : 0
             appear: Math.max(0, Math.min(1, menu.appear * (1 + stagger * (menu.actions.length - 1)) - stagger * index))
             accent: menu.accent
