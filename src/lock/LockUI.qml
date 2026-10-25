@@ -198,6 +198,7 @@ Item {
     }
 
     LockOrbs {
+        id: orbs
         rift: ui.rift
         count: input.text.length
         busy: ui.locker.busy
@@ -223,6 +224,12 @@ Item {
             target: ui.locker
             function onClearInput() {
                 input.text = "";
+            }
+            // Wrong password: the visible copy of the lock screen sends its orbs into the edges,
+            // and the waves start where they hit.
+            function onRejected() {
+                if (ui.visible)
+                    ui.rift.reject(orbs.reject());
             }
         }
     }

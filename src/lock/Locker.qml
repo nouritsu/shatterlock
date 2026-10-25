@@ -50,6 +50,7 @@ Scope {
 
     signal lockRequested(var opts)  // idle, logind, sleep: the shell decides how to open the rift
     signal clearInput
+    signal rejected // a wrong password
 
     // Whether a lock with these options can go ahead; logs why not.
     function canLock(opts) {
@@ -128,8 +129,8 @@ Scope {
         withPassword = false;
         message = why;
         messageIsError = true;
+        rejected(); // while the orbs are still up: the lock screen sends them off (rift.reject)
         clearInput();
-        rift.quake();
         restartAuth.restart();
     }
 

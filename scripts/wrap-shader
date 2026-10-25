@@ -9,4 +9,4 @@ prelude="${SHATTERLOCK_PRELUDE:-$root/src/shaders/prelude.glsl}"
 cat "$prelude"
 printf '#line 1 1\n'
 cat "$1"
-printf '\n#line 1 2\nvoid main() { fragColor = shade(qt_TexCoord0) * qt_Opacity; }\n'
+printf '\n#line 1 2\nvoid main() { shatterlockPx = qt_TexCoord0 * iResolution; fragColor = shade(qt_TexCoord0) * qt_Opacity; }\n'

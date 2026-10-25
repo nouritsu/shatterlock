@@ -17,6 +17,7 @@ Item {
 
     readonly property var snapshot: snapshotSource
     readonly property var sdf: sdfTexture
+    readonly property var alert: alertTexture
     // The lock blur as this view draws it (the overlay draws the cleared rift while it is hidden
     // behind the lock surface).
     property real obscure: rift.obscure ?? 0
@@ -43,9 +44,15 @@ Item {
         function onCrackChanged() {
             view.rebake();
         }
+        function onImpactsChanged() {
+            view.repackAlert();
+        }
     }
 
-    Component.onCompleted: rebake()
+    Component.onCompleted: {
+        rebake();
+        repackAlert();
+    }
 
     // The crack field, baked once per crack into a float texture (see shaders/bake.frag).
     ShaderEffect {
@@ -71,6 +78,48 @@ Item {
         property matrix4x4 uV8
 
         fragmentShader: Qt.resolvedUrl("../shaders/qsb/bake.qsb")
+    }
+
+    // Wrong-password waves (RiftWindow.reject), drawn at a quarter of the resolution into uAlert.
+    ShaderEffect {
+        id: alertField
+        width: view.width
+        height: view.height
+        visible: false
+        blending: false
+
+        property vector2d iResolution: Qt.vector2d(width, height)
+        property real uElapsed: Math.max(0, (view.rift.time ?? 0) - (view.rift.alertBase ?? 0))
+        property real uFade: view.rift.alertFade ?? 0
+        property real uCount: Math.min(32, view.rift.impacts?.length ?? 0)
+        property real uSpeed: view.rift.alertSpeed ?? 1
+        property matrix4x4 uP0
+        property matrix4x4 uP1
+        property matrix4x4 uP2
+        property matrix4x4 uP3
+        property matrix4x4 uT0
+        property matrix4x4 uT1
+
+        fragmentShader: Qt.resolvedUrl("../shaders/qsb/alert.qsb")
+    }
+
+    ShaderEffectSource {
+        id: alertTexture
+        sourceItem: alertField
+        textureSize: Qt.size(Math.max(1, Math.round(view.width / 4)), Math.max(1, Math.round(view.height / 4)))
+        hideSource: true
+        visible: false
+        live: view.rift.alertOn ?? false
+    }
+
+    function repackAlert() {
+        const impacts = (rift.impacts ?? []).slice(0, 32);
+        const p = Crack.packMatrices(impacts.reduce((all, i) => all.concat([i.x, i.y]), []), 4, -1e5);
+        const t = Crack.packMatrices(impacts.map(i => i.at), 2, 1e5);
+        for (let i = 0; i < 4; i++)
+            alertField["uP" + i] = Qt.matrix4x4(...p[i]);
+        for (let i = 0; i < 2; i++)
+            alertField["uT" + i] = Qt.matrix4x4(...t[i]);
     }
 
     ShaderEffectSource {

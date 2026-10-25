@@ -5,7 +5,8 @@ import QtQuick
 // The password as orbs of energy drawn out of the rift: one per character, strung along the
 // middle of the rift and centred on it. Each new one is pulled out of both edges; backspace lets
 // the last one sink back. While the password is checked they pulse together, and once it's
-// accepted they flare and fade.
+// accepted they flare and fade. On a wrong password (reject) they turn red and shoot back into the
+// edges.
 Item {
     id: orbs
 
@@ -25,6 +26,15 @@ Item {
     property real throb: 0
     property real leave: leaving ? 1 : 0
 
+    // Orbs on their way back into the edges after a wrong password: [{ x, y, side, start }], start
+    // in ms; the typed ones vanish at once (`dropping`) as these take their place.
+    property var flyers: []
+    property bool dropping: false
+    readonly property color red: "#ff4a55"
+    readonly property int redMs: 90
+    readonly property int flightMs: 150
+    readonly property int burstMs: 220
+
     // Screen position of the point `s` px along the middle of the rift from its centre.
     function at(s) {
         const crack = rift.crack;
@@ -32,6 +42,41 @@ Item {
             return Qt.point(-100, -100);
         const p = crack.pointAt(0.5 + s / crack.length);
         return Qt.point(p.x, p.y);
+    }
+
+    // Wrong password: the orbs turn red, then shoot to alternate edges, the middle ones first.
+    // Returns where and when each one hits ([{ x, y, at }], at in s from now) for rift.reject.
+    function reject() {
+        const crack = rift.crack;
+        if (!crack || shown === 0)
+            return [];
+        const n = shown;
+        const stagger = Math.min(22, 320 / n);
+        const order = [...Array(n).keys()].sort((a, b) => Math.abs(a - (n - 1) / 2) - Math.abs(b - (n - 1) / 2));
+        const fly = [], hits = [];
+        for (let rank = 0; rank < n; rank++) {
+            const i = order[rank];
+            const p = at((i - (n - 1) / 2) * pitch);
+            const side = i % 2 === 0 ? -1 : 1;
+            const start = redMs + rank * stagger;
+            fly.push({
+                x: p.x,
+                y: p.y,
+                side: side,
+                start: start
+            });
+            hits.push({
+                x: p.x + crack.normal.x * side * halfGap,
+                y: p.y + crack.normal.y * side * halfGap,
+                at: (start + flightMs) * rift.slowmo / 1000
+            });
+        }
+        flyers = fly;
+        dropping = true;
+        Qt.callLater(() => orbs.dropping = false);
+        flyersDone.interval = (redMs + (n - 1) * stagger + flightMs + burstMs) * rift.slowmo + 50;
+        flyersDone.restart();
+        return hits;
     }
 
     anchors.fill: parent
@@ -95,7 +140,14 @@ Item {
 
             Component.onCompleted: if (active)
                 appear()
-            onActiveChanged: active ? appear() : sink.restart()
+            onActiveChanged: {
+                if (active)
+                    appear();
+                else if (orbs.dropping)
+                    presence = 0;
+                else
+                    sink.restart();
+            }
             onTargetSChanged: if (active)
                 s = targetS
 
@@ -187,6 +239,83 @@ Item {
                     height: 12
                     radius: 6
                     color: orbs.core
+                }
+            }
+        }
+    }
+
+    Timer {
+        id: flyersDone
+        onTriggered: orbs.flyers = []
+    }
+
+    Repeater {
+        model: orbs.flyers
+
+        Item {
+            id: flyer
+
+            required property var modelData
+            property real ms: 0 // into its own timeline: red, then flight, then burst
+            readonly property real redness: Math.min(1, ms / orbs.redMs)
+            readonly property real flight: Math.max(0, Math.min(1, (ms - modelData.start) / orbs.flightMs))
+            readonly property real burst: Math.max(0, Math.min(1, (ms - modelData.start - orbs.flightMs) / orbs.burstMs))
+            readonly property real travelled: orbs.halfGap * flight * flight
+            readonly property color tint: Qt.tint(orbs.core, Qt.rgba(1, 0.29, 0.33, redness))
+
+            x: modelData.x
+            y: modelData.y
+            width: 1
+            height: 1
+            rotation: orbs.angle
+
+            NumberAnimation on ms {
+                from: 0
+                to: flyer.modelData.start + orbs.flightMs + orbs.burstMs
+                duration: (flyer.modelData.start + orbs.flightMs + orbs.burstMs) * orbs.rift.slowmo
+            }
+
+            // A trail back along its way while it flies.
+            Rectangle {
+                readonly property real length: Math.min(54, flyer.travelled)
+                x: -2
+                y: flyer.modelData.side > 0 ? flyer.travelled - length : -flyer.travelled
+                width: 4
+                height: length
+                radius: 2
+                visible: flyer.flight > 0 && flyer.burst === 0
+                gradient: Gradient {
+                    GradientStop {
+                        position: 0
+                        color: flyer.modelData.side > 0 ? "transparent" : orbs.red
+                    }
+                    GradientStop {
+                        position: 1
+                        color: flyer.modelData.side > 0 ? orbs.red : "transparent"
+                    }
+                }
+            }
+
+            Item {
+                y: flyer.modelData.side * flyer.travelled
+                scale: 1 + 1.8 * flyer.burst
+                opacity: 1 - flyer.burst
+
+                ShaderEffect {
+                    x: -30
+                    y: -30
+                    width: 60
+                    height: 60
+                    property color uColor: Qt.tint(orbs.accent, Qt.rgba(1, 0.16, 0.2, flyer.redness))
+                    fragmentShader: Qt.resolvedUrl("../shaders/qsb/halo.qsb")
+                }
+                Rectangle {
+                    x: -6
+                    y: -6
+                    width: 12
+                    height: 12
+                    radius: 6
+                    color: flyer.tint
                 }
             }
         }

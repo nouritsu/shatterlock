@@ -19,7 +19,7 @@ ShaderEffect {
     property vector2d uOffB: rift.offB
     property vector2d uMouse: rift.mouse
     property real uHover: rift.hover
-    property color uAccent: rift.effectiveAccent ?? rift.accent
+    property color uAccent: rift.accent // accent() turns it red where a wrong-password wave is
     property color uVoid: rift.voidColor
     property var uSnapshot: view.snapshot
     property var uSdf: view.sdf
@@ -35,6 +35,8 @@ ShaderEffect {
         })[rift.obscureStyle] ?? 0
     property vector4d uCrackLine: rift.crack ? Qt.vector4d(rift.crack.from.x, rift.crack.from.y, rift.crack.normal.x, rift.crack.normal.y) : Qt.vector4d(0, 0, 0, 1)
     property vector4d uEnergy: rift.energy ?? Qt.vector4d(-1e4, -1e4, 0, 0)
+    property real uAlertOn: rift.alertOn ? 1 : 0
+    property var uAlert: view.alert
 
     // Heavy custom shaders can draw at a fraction of the output's resolution.
     property real renderScale: 1

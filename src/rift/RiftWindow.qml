@@ -116,8 +116,17 @@ PanelWindow {
     property real obscure: 0
     readonly property string obscureStyle: cfg.lock?.blur ?? "void"
 
-    // Accent as drawn: flashes red on a wrong password.
-    property real alert: 0
+    // Wrong password: red waves spread from where the orbs hit the edges (reject) until they cover
+    // the screen, then fade. The rift's shaders read them per pixel (RiftView.alert); `alert` is
+    // how red the screen is as a whole, for the other outputs and the lock screen's widgets.
+    property var impacts: []       // [{ x, y, at }]: where and when (s after alertBase) each starts
+    property real alertBase: 0     // shader clock at the rejection
+    property real alertFirst: 0    // when the first wave starts, s after alertBase
+    property real alertCovered: 0  // when the waves cover the screen, s after alertBase
+    property real alertFade: 0     // 1 while the waves are up .. 0
+    readonly property real alertSpeed: 2600 / slowmo // px/s
+    readonly property bool alertOn: alertFade > 0
+    readonly property real alert: alertOn ? alertFade * Math.max(0, Math.min(1, (time - alertBase - alertFirst) / Math.max(0.05, alertCovered - alertFirst))) : 0
     readonly property color effectiveAccent: Qt.tint(accent, Qt.rgba(1, 0.16, 0.2, alert))
     readonly property int openFrames: clock.openFrames
 
@@ -254,7 +263,9 @@ PanelWindow {
         lineAlpha = 0;
         shake = 0;
         jolt = 0;
-        alert = 0;
+        rejectSeq.stop();
+        alertFade = 0;
+        impacts = [];
         obscure = 0;
         lockAppear = 0;
         lockAfterOpen = false;
@@ -558,9 +569,56 @@ PanelWindow {
         onTriggered: win.startClosing()
     }
 
-    // Wrong password: an aftershock, and the edges flash red.
+    // An aftershock: the halves jerk apart and back.
     function quake() {
         quakeSeq.restart();
+    }
+
+    // Wrong password: red waves from `points` ([{ x, y, at }], at in s from now; where the orbs hit
+    // the edges, see LockOrbs.reject), else from the middle of the rift. The halves jolt when the
+    // first one starts.
+    function reject(points) {
+        let list = points ?? [];
+        if (list.length === 0) {
+            const p = crack?.pointAt(0.5) ?? {
+                x: width / 2,
+                y: height / 2
+            };
+            list = [
+                {
+                    x: p.x,
+                    y: p.y,
+                    at: 0
+                }
+            ];
+        }
+        // Covered once every corner is inside some wave (the impacts lie along the middle).
+        const corners = [[0, 0], [width, 0], [0, height], [width, height]];
+        alertCovered = Math.max(...corners.map(c => Math.min(...list.map(p => p.at + Math.hypot(c[0] - p.x, c[1] - p.y) / alertSpeed))));
+        alertFirst = Math.min(...list.map(p => p.at));
+        alertBase = time;
+        impacts = list;
+        alertFade = 1;
+        rejectSeq.restart();
+    }
+
+    SequentialAnimation {
+        id: rejectSeq
+        PauseAnimation {
+            duration: win.alertFirst * 1000
+        }
+        ScriptAction {
+            script: win.quake()
+        }
+        PauseAnimation {
+            duration: (win.alertCovered - win.alertFirst + 0.15) * 1000
+        }
+        NumberAnimation {
+            target: win
+            property: "alertFade"
+            to: 0
+            duration: 550 * win.slowmo
+        }
     }
 
     SequentialAnimation {
@@ -695,23 +753,6 @@ PanelWindow {
                     property: "shake"
                     to: 0
                     duration: 70
-                }
-            }
-            SequentialAnimation {
-                NumberAnimation {
-                    target: win
-                    property: "alert"
-                    to: 1
-                    duration: 60
-                }
-                PauseAnimation {
-                    duration: 250
-                }
-                NumberAnimation {
-                    target: win
-                    property: "alert"
-                    to: 0
-                    duration: 550
                 }
             }
         }

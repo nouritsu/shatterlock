@@ -57,10 +57,11 @@ blended over what's below.
 | `uMouse` | vec2 | cursor position, px |
 | `uHover` | float | highlighted action index, −1 for none |
 | `uEnergy` | vec4 | the action button drawing energy from the edges: centre (xy, px), hold charge 0 … 1 (z), press pulse 0 … 1 (w) |
-| `uAccent`, `uVoid` | vec4 | theme colours (premultiplied) |
+| `uAccent`, `uVoid` | vec4 | theme colours (premultiplied); prefer `accent()`, which also turns red with wrong-password waves |
 | `uSnapshot` | sampler2D | the screen: frozen, or live with `"live": true` |
 | `uSdf` | sampler2D | the crack field (use the helpers below) |
 | `uSource` | sampler2D | opening slot: the rift as composited so far |
+| `uAlert`, `uAlertOn` | sampler2D, float | wrong-password waves on the lock screen, in screen space (r how red, g the wavefronts), and 1 while they are up |
 
 ### Helpers
 
@@ -71,7 +72,7 @@ blended over what's below.
 | `snapshot(uv)` | the screen as displayed (each half moved; nearest edge inside the rift) |
 | `crackAt(px)` | raw crack field of the closed screen (r distance, g along) |
 | `toPx(uv)`, `toUv(px)` | convert between uv and pixels |
-| `accent()` | accent colour |
+| `accent()` | accent colour at the pixel being shaded (red where a wrong-password wave has reached) |
 | `hash12(p)`, `noise2(p)` | hash and value noise |
 
 ## Examples

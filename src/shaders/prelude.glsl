@@ -35,6 +35,7 @@ layout(std140, binding = 0) uniform buf {
                         // the unit normal pointing into half B (zw)
     vec4 uEnergy;       // the action button drawing energy from the edges: its centre (xy, px),
                         // hold charge 0..1 (z), press pulse 0..1 (w); z = w = 0 when none
+    float uAlertOn;     // 1 while wrong-password waves are up (see uAlert)
 };
 
 layout(binding = 1) uniform sampler2D uSnapshot; // the frozen screen
@@ -44,6 +45,10 @@ layout(binding = 2) uniform sampler2D uSdf;      // crack field of the closed sc
                                                  //   b, a unused (0)
 layout(binding = 3) uniform sampler2D uSource;   // opening slot: the rift as composited so far
                                                  // (other slots get the snapshot here)
+layout(binding = 4) uniform sampler2D uAlert;    // wrong-password waves (screen space): r how red,
+                                                 // g the wavefronts
+
+vec2 shatterlockPx; // the pixel being shaded (px), set before shade() runs
 
 vec2 toPx(vec2 uv) { return uv * iResolution; }
 vec2 toUv(vec2 px) { return px / iResolution; }
@@ -92,7 +97,11 @@ vec2 riftUV(vec2 uv) {
     return vec2(along, across);
 }
 
-vec3 accent() { return uAccent.rgb; }
+// Wrong-password waves at the pixel being shaded, and the theme accent there: red wherever a wave
+// has reached.
+const vec3 ALERT = vec3(1.0, 0.16, 0.2);
+vec4 alertHere() { return uAlertOn > 0.5 ? texture(uAlert, toUv(shatterlockPx)) : vec4(0.0); }
+vec3 accent() { return mix(uAccent.rgb, ALERT, alertHere().r); }
 
 float hash12(vec2 p) {
     vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -170,9 +179,9 @@ vec3 obscuredSnapshot(vec2 q, float edgeDist) {
         col = col * (1.0 - 0.1 * k) + pow(max(0.0, flute), 12.0) * 0.18 * k + accent() * 0.06 * k;
     }
 
-    // The wavefront itself glows as it passes.
+    // The wavefront glows as it passes, and so do the fronts of wrong-password waves.
     float ring = uObscure < 1.0 ? exp(-abs(edgeDist - obscureFront()) / 22.0) : 0.0;
-    return col + accent() * ring * 0.45 + vec3(ring * 0.15);
+    return col + accent() * ring * 0.45 + vec3(ring * 0.15) + ALERT * alertHere().g * 0.45;
 }
 
 // The frozen screen as displayed: each half's pixels at their moved position (inside the rift,
