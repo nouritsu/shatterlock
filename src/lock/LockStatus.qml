@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 
-// The lock screen's status row: Caps Lock (while it's on), Bluetooth, network and battery.
+// The lock screen's status row: network, Bluetooth, Caps Lock (while it's on) and battery.
 Row {
     id: status
 
@@ -35,9 +35,8 @@ Row {
     }
 
     Entry {
-        visible: status.info.capsLock
-        icon: "keyboard_capslock"
-        label: "Caps Lock"
+        icon: status.info.netIcon
+        label: status.info.netName || "Offline"
     }
     Entry {
         visible: status.info.hasBluetooth
@@ -45,8 +44,9 @@ Row {
         label: status.info.bluetoothText
     }
     Entry {
-        icon: status.info.netIcon
-        label: status.info.netName || "Offline"
+        visible: status.info.capsLock
+        icon: "keyboard_capslock"
+        label: "Caps Lock"
     }
     Entry {
         visible: status.info.hasBattery
