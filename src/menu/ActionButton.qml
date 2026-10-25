@@ -70,6 +70,13 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             text: btn.icon
             font.family: btn.iconFamily
+            // Native glyphs (the default rendering mangles filled Material Symbols), drawn unrotated
+            // at twice the size and then turned with the button, so their edges stay smooth.
+            renderType: Text.NativeRendering
+            layer.enabled: true
+            layer.smooth: true
+            layer.mipmap: true
+            layer.textureSize: Qt.size(width * 2, height * 2)
             font.pixelSize: 34
             font.variableAxes: {
                 "FILL": btn.selected || btn.pulse > 0 ? 1 : 0
