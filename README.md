@@ -77,11 +77,16 @@ re-read whenever it changes. Unknown keys and wrong types are logged and fall ba
 ## Development
 
 ```sh
-nix develop                     # quickshell, qsb, qmllint, Material Symbols
+nix develop                     # quickshell, qsb, qmllint, Material Symbols, the plugin's toolchain
 ./scripts/build-shaders
 nix run .#dev                   # run the working tree in the foreground
 nix flake check                 # builds the package, compiles every shader, applies the niri patch
 ```
+
+The lock screen reads Caps Lock from the compositor through a small C++ QML module
+(`plugin/`, `Shatterlock.Keyboard`): QML can't see the keyboard's lock state. The package, the dev
+shell and `nix run .#dev` build it and put it on `QML_IMPORT_PATH`; without it shatterlock still
+runs, just without the Caps Lock indicator.
 
 `docs/spike-results.md` has the measurements behind the design (latency, frame pacing, why the
 halves are a snapshot on stock niri).

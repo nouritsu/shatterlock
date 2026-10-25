@@ -36,9 +36,16 @@
     iconFontHook = pkgs: ''
       export SHATTERLOCK_ICON_FONT="$(find ${pkgs.material-symbols}/share/fonts -iname 'MaterialSymbolsRounded*' | head -n1)"
     '';
+
+    # The Caps Lock plugin (plugin/), built by Nix, for running the working tree.
+    keyboardHook = pkgs: ''
+      export QML_IMPORT_PATH="${pkgs.callPackage ./nix/keyboard.nix {}}/lib/qt-6/qml''${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"
+    '';
   in {
     packages = forAllSystems (pkgs: {
       default = pkgs.callPackage ./nix/package.nix {};
+      # The Caps Lock plugin on its own (the package builds it too).
+      keyboard = pkgs.callPackage ./nix/keyboard.nix {};
       # niri with the patch, from this flake's niri input (for testing it nested).
       niri = niri.packages.${pkgs.stdenv.hostPlatform.system}.niri.overrideAttrs (old: {
         patches = (old.patches or []) ++ niriPatches;
@@ -70,8 +77,11 @@
     devShells = forAllSystems (pkgs: {
       default = pkgs.mkShell {
         packages = devTools pkgs;
+        # cmake, Qt, wayland and xkbcommon, for working on plugin/
+        inputsFrom = [(pkgs.callPackage ./nix/keyboard.nix {})];
         shellHook =
           iconFontHook pkgs
+          + keyboardHook pkgs
           + ''
             export SHATTERLOCK_DEV=1
           '';
@@ -88,6 +98,7 @@
               export PATH=${pkgs.lib.makeBinPath (devTools pkgs)}:$PATH
             ''
             + iconFontHook pkgs
+            + keyboardHook pkgs
             + ''
               export SHATTERLOCK_DEV=1
               export QSG_RENDER_LOOP="''${QSG_RENDER_LOOP:-threaded}"

@@ -6,7 +6,7 @@ import Quickshell.Services.Mpris
 import Quickshell.Services.UPower
 
 // What the lock screen shows besides the password: who you are, battery, network, Bluetooth,
-// Caps Lock and the media player. Network and Caps Lock are polled only while `active`.
+// Caps Lock and the media player. Network is polled only while `active`.
 Scope {
     id: info
 
@@ -48,9 +48,8 @@ Scope {
         return `${bluetoothConnected.length} devices`;
     }
 
-    // Caps Lock, from the keyboards' LEDs: neither Qt nor Quickshell exposes the lock state.
-    property bool capsLock: false
-    property var capsLeds: []
+    // Caps Lock, from the compositor through the Shatterlock.Keyboard plugin (CapsLock.qml).
+    readonly property bool capsLock: caps.item?.on ?? false
 
     // Media: the playing player, else the first one
     readonly property var player: {
@@ -58,44 +57,9 @@ Scope {
         return players.find(p => p.isPlaying) ?? players[0] ?? null;
     }
 
-    onActiveChanged: {
-        if (active)
-            findLeds.running = true; // keyboards come and go
-    }
-
-    Process {
-        id: findLeds
-        command: ["sh", "-c", "for f in /sys/class/leds/*::capslock/brightness; do [ -e \"$f\" ] && echo \"$f\"; done"]
-        stdout: StdioCollector {
-            onStreamFinished: info.capsLeds = text.split("\n").filter(l => l !== "")
-        }
-    }
-
-    Variants {
-        id: leds
-        model: info.capsLeds
-
-        FileView {
-            required property string modelData
-            path: modelData
-            blockLoading: true
-            printErrors: false
-        }
-    }
-
-    Timer {
-        interval: 250
-        repeat: true
-        triggeredOnStart: true
-        running: info.active && info.capsLeds.length > 0
-        onTriggered: {
-            let on = false;
-            for (const led of leds.instances) {
-                led.reload();
-                on = on || parseInt(led.text()) > 0;
-            }
-            info.capsLock = on;
-        }
+    Loader {
+        id: caps
+        source: "CapsLock.qml"
     }
 
     Process {

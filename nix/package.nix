@@ -1,5 +1,6 @@
 {
   lib,
+  callPackage,
   stdenvNoCC,
   makeWrapper,
   quickshell,
@@ -17,64 +18,67 @@
   settings ? {},
 }: let
   settingsFile = (formats.json {}).generate "shatterlock-settings.json" settings;
+  # The QML module the lock screen reads Caps Lock from (plugin/).
+  keyboard = callPackage ./keyboard.nix {};
 in
-stdenvNoCC.mkDerivation {
-  pname = "shatterlock";
-  version = "0.1.0";
+  stdenvNoCC.mkDerivation {
+    pname = "shatterlock";
+    version = "0.1.0";
 
-  src = lib.fileset.toSource {
-    root = ../.;
-    fileset = lib.fileset.unions [
-      ../bin
-      ../config
-      ../docs
-      ../examples
-      ../scripts
-      ../src
-      ../LICENSE
+    src = lib.fileset.toSource {
+      root = ../.;
+      fileset = lib.fileset.unions [
+        ../bin
+        ../config
+        ../docs
+        ../examples
+        ../scripts
+        ../src
+        ../LICENSE
+      ];
+    };
+
+    # Quickshell comes wrapped already; Qt is only here for qsb at build time.
+    dontWrapQtApps = true;
+
+    nativeBuildInputs = [
+      makeWrapper
+      qt6.qtshadertools
     ];
-  };
 
-  # Quickshell comes wrapped already; Qt is only here for qsb at build time.
-  dontWrapQtApps = true;
+    buildPhase = ''
+      runHook preBuild
+      patchShebangs bin scripts
+      ./scripts/build-shaders
+      runHook postBuild
+    '';
 
-  nativeBuildInputs = [
-    makeWrapper
-    qt6.qtshadertools
-  ];
+    installPhase = ''
+      runHook preInstall
+      mkdir -p $out/share/shatterlock $out/bin
+      cp -r bin config docs examples scripts src LICENSE $out/share/shatterlock/
+      makeWrapper $out/share/shatterlock/bin/shatterlock $out/bin/shatterlock \
+        --prefix PATH : ${
+        lib.makeBinPath [
+          quickshell
+          qt6.qtshadertools
+          netcat-openbsd
+          coreutils
+          gnused
+          glib # gdbus, to follow logind's Lock and PrepareForSleep
+          procps # pgrep, to retire a daemon from an older build
+        ]
+      } \
+        --set-default SHATTERLOCK_ICON_FONT "$(find ${material-symbols}/share/fonts -iname 'MaterialSymbolsRounded*' | head -n1)" \
+        --prefix QML_IMPORT_PATH : ${keyboard}/lib/qt-6/qml \
+        ${lib.optionalString (settings != {}) "--set SHATTERLOCK_SETTINGS ${settingsFile}"}
+      runHook postInstall
+    '';
 
-  buildPhase = ''
-    runHook preBuild
-    patchShebangs bin scripts
-    ./scripts/build-shaders
-    runHook postBuild
-  '';
-
-  installPhase = ''
-    runHook preInstall
-    mkdir -p $out/share/shatterlock $out/bin
-    cp -r bin config docs examples scripts src LICENSE $out/share/shatterlock/
-    makeWrapper $out/share/shatterlock/bin/shatterlock $out/bin/shatterlock \
-      --prefix PATH : ${
-      lib.makeBinPath [
-        quickshell
-        qt6.qtshadertools
-        netcat-openbsd
-        coreutils
-        gnused
-        glib # gdbus, to follow logind's Lock and PrepareForSleep
-        procps # pgrep, to retire a daemon from an older build
-      ]
-    } \
-      --set-default SHATTERLOCK_ICON_FONT "$(find ${material-symbols}/share/fonts -iname 'MaterialSymbolsRounded*' | head -n1)" \
-      ${lib.optionalString (settings != {}) "--set SHATTERLOCK_SETTINGS ${settingsFile}"}
-    runHook postInstall
-  '';
-
-  meta = {
-    description = "Tear the screen open into a rift session menu (niri + Quickshell)";
-    license = lib.licenses.mit;
-    platforms = lib.platforms.linux;
-    mainProgram = "shatterlock";
-  };
-}
+    meta = {
+      description = "Tear the screen open into a rift session menu (niri + Quickshell)";
+      license = lib.licenses.mit;
+      platforms = lib.platforms.linux;
+      mainProgram = "shatterlock";
+    };
+  }
