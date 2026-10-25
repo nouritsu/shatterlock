@@ -132,7 +132,7 @@ PanelWindow {
     // straight into locking (a bind, idle, logind) never goes live before it.
     readonly property bool live: cfg.live === true
     readonly property bool lockPressed: menu.committed && menuActions[menu.pulseIndex]?.id === "lock" && (cfg.lock?.enabled ?? true)
-    readonly property bool capturingLive: live && (phase === "unlocking" || phase === "closing" || (active && !lockAfterOpen && !lockPressed))
+    readonly property bool capturingLive: live && ((phase === "unlocking" && !locker?.sessionLocked) || phase === "closing" || (active && !lockAfterOpen && !lockPressed))
 
     // Timing of the last open, ms since the epoch (for `shatterlock stats`).
     property var timings: ({})
@@ -248,6 +248,7 @@ PanelWindow {
     }
 
     function finishClose() {
+        awaitingFrame = false;
         phase = "idle";
         progress = 0;
         lineAlpha = 0;
@@ -334,6 +335,7 @@ PanelWindow {
         rift: win
         snapshotSource: snapTexture
         warming: win.phase === "warming"
+        obscure: win.behindLock ? 0 : win.obscure
     }
 
     // A held or pressed button drawing energy from the edges, under the buttons. Drawn once while
@@ -496,12 +498,48 @@ PanelWindow {
             lockLoader.item?.focusInput();
     }
 
-    // Unlocked: the fog clears, then the halves slam shut and the live screen comes back.
+    // Unlocked: the fog clears, the session is given back, then the halves slam shut and the live
+    // screen comes back.
+    //
+    // While the session is locked this window is hidden behind the lock surface and niri only lets
+    // it draw about once a second, so whatever it shows when the lock goes is that old frame. So
+    // the fog clears on the lock surface first, while this window already draws the cleared rift
+    // (behindLock); both look the same at the handoff, and the slam waits for a fresh frame here.
     function unseal() {
         sealSeq.stop();
         quakeSeq.stop();
         phase = "unlocking";
         unsealSeq.start();
+    }
+
+    readonly property bool behindLock: !!locker?.sessionLocked && (phase === "locked" || phase === "unlocking")
+    property bool awaitingFrame: false
+
+    function handBack() {
+        locker?.release();
+        phase = "closing";
+        awaitingFrame = true;
+        frameTimeout.restart();
+    }
+
+    function startClosing() {
+        if (!awaitingFrame)
+            return;
+        awaitingFrame = false;
+        closeSeq.start();
+    }
+
+    Connections {
+        target: inputArea.Window.window
+        function onFrameSwapped() {
+            win.startClosing();
+        }
+    }
+
+    Timer {
+        id: frameTimeout
+        interval: 150
+        onTriggered: win.startClosing()
     }
 
     // Wrong password: an aftershock, and the edges flash red.
@@ -578,10 +616,7 @@ PanelWindow {
             }
         }
         ScriptAction {
-            script: {
-                win.phase = "closing";
-                closeSeq.start();
-            }
+            script: win.handBack()
         }
     }
 
@@ -1006,7 +1041,7 @@ PanelWindow {
             rift: win
             locker: win.locker
             info: win.locker.info
-            appear: win.lockAppear
+            appear: win.behindLock ? 0 : win.lockAppear
         }
     }
 }

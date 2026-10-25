@@ -129,6 +129,8 @@ Scope {
         restartAuth.restart();
     }
 
+    // Authenticated: the fog clears from the rift (on the lock surface while locked), then
+    // release() gives the session back.
     function unlock() {
         if (!rift.lockPhase || rift.phase === "unlocking")
             return;
@@ -138,13 +140,16 @@ Scope {
             fingerprint.abort();
         busy = false;
         pending = "";
+        rift.unseal();
+    }
+
+    function release() {
         if (sessionLock.locked) {
             lockedHint(false);
             sessionLock.locked = false;
         }
         preview = false;
         snapshotUrl = "";
-        rift.unseal();
     }
 
     function cancelPreview() {

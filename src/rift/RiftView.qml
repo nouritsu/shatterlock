@@ -17,6 +17,9 @@ Item {
 
     readonly property var snapshot: snapshotSource
     readonly property var sdf: sdfTexture
+    // The lock blur as this view draws it (the overlay draws the cleared rift while it is hidden
+    // behind the lock surface).
+    property real obscure: rift.obscure ?? 0
 
     function rebake() {
         const crack = rift.crack;

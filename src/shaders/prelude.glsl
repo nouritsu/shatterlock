@@ -137,8 +137,11 @@ vec3 obscuredSnapshot(vec2 q, float edgeDist) {
     vec3 col;
     if (uObscureStyle < 0.5) {
         // Void fog: the picture sinks into dark, accent-tinted fog with slow smoke curling through.
+        // While unlocking it streams back into the rift as it clears.
         vec3 remains = textureLod(uSnapshot, toUv(q), 7.0 * k).rgb;
-        vec2 p = q * 0.0035;
+        float back = uPhase > 7.5 && uPhase < 8.5 ? 1.0 - uObscure : 0.0;
+        vec2 intoRift = uCrackLine.zw * (crackSide(q) < 0.0 ? 1.0 : -1.0);
+        vec2 p = (q - intoRift * 220.0 * back) * 0.0035;
         vec2 drift = vec2(iTime * 0.035, -iTime * 0.022);
         float smoke = fbm(p + drift + 1.6 * fbm(p * 1.7 - drift));
         float wisps = smoothstep(0.42, 0.9, smoke);
