@@ -15,7 +15,6 @@ Scope {
     // User
     readonly property string userName: Quickshell.env("USER") ?? ""
     property string fullName: ""
-    readonly property var avatarCandidates: [`/var/lib/AccountsService/icons/${userName}`, `${Quickshell.env("HOME")}/.face`, `${Quickshell.env("HOME")}/.face.icon`]
 
     // Battery (laptops only)
     readonly property bool hasBattery: UPower.devices.values.some(d => d.isLaptopBattery)

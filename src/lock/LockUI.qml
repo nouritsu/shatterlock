@@ -3,7 +3,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Effects
 import Quickshell
-import Quickshell.Widgets
 
 // The lock screen's contents: the clock, what's playing and the status row out over the halves,
 // who is locked in and the password in the rift. Shown by the lock surface (and by the overlay
@@ -110,11 +109,13 @@ Item {
         shadowHorizontalOffset: 0
     }
 
-    // In the rift: who is locked in, upright in the middle, with PAM's prompt or its last message
-    // under it. Typing sends it back into the rift, and the password appears as orbs instead.
+    // In the rift, upright in the middle: a lock, who is locked in, and PAM's last message (or a
+    // prompt other than the password's, e.g. for a one-time code). Typing sends it back into the
+    // rift, and the password appears as orbs instead.
     Column {
         id: userBlock
         property real sink: ui.typing ? 1 : 0
+        readonly property bool showUser: ui.options.showUser ?? true
         x: ui.middle.x - width / 2
         y: ui.middle.y - height / 2
         width: ui.rift.lockBlock.width
@@ -130,43 +131,34 @@ Item {
             }
         }
 
-        ClippingRectangle {
-            id: avatar
-            property int candidate: 0
+        Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
-            visible: ui.options.showUser ?? true
             width: 72
             height: 72
             radius: 36
-            color: Qt.rgba(ui.accent.r, ui.accent.g, ui.accent.b, 0.25)
+            color: Qt.rgba(ui.accent.r, ui.accent.g, ui.accent.b, 0.18)
             border.width: 1
             border.color: Qt.rgba(ui.accent.r, ui.accent.g, ui.accent.b, 0.6)
 
-            Image {
-                anchors.fill: parent
-                source: avatar.candidate < ui.info.avatarCandidates.length ? "file://" + ui.info.avatarCandidates[avatar.candidate] : ""
-                fillMode: Image.PreserveAspectCrop
-                sourceSize: Qt.size(144, 144)
-                onStatusChanged: if (status === Image.Error)
-                    avatar.candidate++
-            }
             Text {
                 anchors.centerIn: parent
-                visible: avatar.candidate >= ui.info.avatarCandidates.length
-                text: (ui.info.fullName || ui.info.userName).charAt(0).toUpperCase()
-                font.family: ui.rift.labelFamily
-                font.pixelSize: 30
-                color: ui.ink
+                text: "lock"
+                font.family: ui.rift.iconFamily
+                renderType: Text.NativeRendering
+                font.pixelSize: 36
+                font.variableAxes: {
+                    "FILL": 1
+                }
+                color: ui.accent
             }
         }
         Item {
-            visible: avatar.visible
             width: 1
             height: 4
         }
         Text {
             width: parent.width
-            visible: avatar.visible
+            visible: userBlock.showUser
             horizontalAlignment: Text.AlignHCenter
             elide: Text.ElideRight
             text: ui.info.userName
@@ -177,7 +169,7 @@ Item {
         }
         Text {
             width: parent.width
-            visible: avatar.visible && ui.info.fullName !== "" && ui.info.fullName !== ui.info.userName
+            visible: userBlock.showUser && ui.info.fullName !== "" && ui.info.fullName !== ui.info.userName
             horizontalAlignment: Text.AlignHCenter
             elide: Text.ElideRight
             text: ui.info.fullName
@@ -187,6 +179,7 @@ Item {
         }
         Text {
             width: parent.width
+            visible: text !== ""
             topPadding: 4
             horizontalAlignment: Text.AlignHCenter
             elide: Text.ElideRight

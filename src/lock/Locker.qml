@@ -33,7 +33,7 @@ Scope {
     readonly property bool sessionLocked: sessionLock.locked
 
     // Password field
-    property string prompt: "Password"
+    property string prompt: "" // what PAM asks for when it isn't the password (a one-time code)
     property string message: ""
     property bool messageIsError: false
     property bool busy: false
@@ -70,7 +70,7 @@ Scope {
     // Called by the shell just before it seals the rift.
     function begin(opts) {
         preview = !!opts?.preview;
-        prompt = fingerprintReady && !preview ? "Password, or touch the reader" : "Password";
+        prompt = "";
         message = "";
         messageIsError = false;
         busy = false;
