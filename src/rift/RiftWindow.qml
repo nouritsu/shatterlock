@@ -55,6 +55,8 @@ PanelWindow {
     readonly property int spreadMs: (cfg.animation?.spreadMs ?? 120) * slowmo
     readonly property int openMs: (cfg.animation?.openMs ?? 330) * (reducedMotion ? 0.6 : 1) * slowmo
     readonly property int closeMs: (cfg.animation?.closeMs ?? 200) * slowmo
+    readonly property int unsealMs: 450 * slowmo // the fog clearing on unlock
+    readonly property int unsealCloseMs: Math.min(unsealMs, closeMs * 1.5) // halves closing then
     readonly property real overshoot: reducedMotion ? 0 : cfg.animation?.overshoot ?? 0.08
 
     property color accent: "#cba6f7"
@@ -245,6 +247,8 @@ PanelWindow {
         openSeq.stop();
         reopenSeq.stop();
         closeSeq.stop();
+        unsealSeq.stop();
+        revealSeq.stop();
         menuFade.stop();
         menu.settle();
         finishClose();
@@ -252,6 +256,7 @@ PanelWindow {
 
     function finishClose() {
         awaitingFrame = false;
+        cover.opacity = 1;
         phase = "idle";
         progress = 0;
         lineAlpha = 0;
@@ -356,7 +361,7 @@ PanelWindow {
         rift: win
         snapshotSource: snapTexture
         warming: win.phase === "warming"
-        obscure: win.behindLock ? 0 : win.obscure
+        visible: !win.covered
     }
 
     onPhaseChanged: {
@@ -508,13 +513,14 @@ PanelWindow {
             lockLoader.item?.focusInput();
     }
 
-    // Unlocked: the fog clears, the session is given back, then the halves slam shut and the live
-    // screen comes back.
+    // Unlocked: the fog clears as the halves slam shut, the session is given back, then the frozen
+    // screen fades into the live one.
     //
     // While the session is locked this window is hidden behind the lock surface and niri only lets
     // it draw about once a second, so whatever it shows when the lock goes is that old frame. So
-    // the fog clears on the lock surface first, while this window already draws the cleared rift
-    // (behindLock); both look the same at the handoff, and the slam waits for a fresh frame here.
+    // the whole unlock plays on the lock surface, which ends showing the frozen screen, and this
+    // window shows only that (`covered`) until it is handed back. Then it fades the frozen screen
+    // out over the live one, once it has drawn a fresh frame.
     function unseal() {
         sealSeq.stop();
         quakeSeq.stop();
@@ -523,33 +529,48 @@ PanelWindow {
     }
 
     readonly property bool behindLock: !!locker?.sessionLocked && (phase === "locked" || phase === "unlocking")
+    readonly property bool covered: behindLock || phase === "revealing"
     property bool awaitingFrame: false
 
     function handBack() {
         locker?.release();
-        phase = "closing";
+        phase = "revealing";
         awaitingFrame = true;
         frameTimeout.restart();
     }
 
-    function startClosing() {
+    function startReveal() {
         if (!awaitingFrame)
             return;
         awaitingFrame = false;
-        closeSeq.start();
+        revealSeq.start();
     }
 
     Connections {
         target: inputArea.Window.window
         function onFrameSwapped() {
-            win.startClosing();
+            win.startReveal();
         }
     }
 
     Timer {
         id: frameTimeout
         interval: 150
-        onTriggered: win.startClosing()
+        onTriggered: win.startReveal()
+    }
+
+    SequentialAnimation {
+        id: revealSeq
+        NumberAnimation {
+            target: cover
+            property: "opacity"
+            to: 0
+            duration: 180 * win.slowmo
+            easing.type: Easing.OutQuad
+        }
+        ScriptAction {
+            script: win.finishClose()
+        }
     }
 
     // An aftershock: the halves jerk apart and back.
@@ -661,6 +682,7 @@ PanelWindow {
         PauseAnimation {
             duration: win.locker?.withPassword ? 180 : 0
         }
+        // The fog clears as the halves slam shut, both ending together.
         ParallelAnimation {
             NumberAnimation {
                 target: win
@@ -672,9 +694,65 @@ PanelWindow {
                 target: win
                 property: "obscure"
                 to: 0
-                duration: 450 * win.slowmo
+                duration: win.unsealMs
                 easing.type: Easing.InQuad
             }
+            SequentialAnimation {
+                PauseAnimation {
+                    duration: win.unsealMs - win.unsealCloseMs
+                }
+                ParallelAnimation {
+                    NumberAnimation {
+                        target: win
+                        property: "progress"
+                        to: 0
+                        duration: win.unsealCloseMs
+                        easing.type: Easing.InQuad
+                    }
+                    NumberAnimation {
+                        target: win
+                        property: "lineAlpha"
+                        to: 1
+                        duration: win.unsealCloseMs
+                    }
+                    NumberAnimation {
+                        target: win
+                        property: "spread"
+                        to: 1
+                        duration: 0
+                    }
+                }
+            }
+        }
+        // Settle, and let the seam fade.
+        SequentialAnimation {
+            NumberAnimation {
+                target: win
+                property: "shake"
+                to: win.reducedMotion ? 0 : 2
+                duration: 30
+                easing.type: Easing.OutQuad
+            }
+            NumberAnimation {
+                target: win
+                property: "shake"
+                to: win.reducedMotion ? 0 : -1
+                duration: 45
+                easing.type: Easing.InOutQuad
+            }
+            NumberAnimation {
+                target: win
+                property: "shake"
+                to: 0
+                duration: 45
+                easing.type: Easing.InOutQuad
+            }
+        }
+        NumberAnimation {
+            target: win
+            property: "lineAlpha"
+            to: 0
+            duration: 90
         }
         ScriptAction {
             script: win.handBack()
@@ -1085,7 +1163,16 @@ PanelWindow {
             rift: win
             locker: win.locker
             info: win.locker.info
-            appear: win.behindLock ? 0 : win.lockAppear
+            appear: win.covered ? 0 : win.lockAppear
         }
+    }
+
+    // The frozen screen alone, on top: what this window shows while the lock surface covers it and
+    // as the unlocked screen is revealed (see unseal).
+    ShaderEffect {
+        id: cover
+        anchors.fill: parent
+        visible: win.covered
+        property var source: snapTexture
     }
 }

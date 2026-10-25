@@ -27,7 +27,7 @@ ShaderEffect {
     // the snapshot. (A default binding here would override the layer's assignment.)
     property var uSource
     property real uWarn: rift.warn ? 1 : 0
-    property real uObscure: view.obscure ?? 0
+    property real uObscure: rift.obscure ?? 0
     property real uObscureStyle: ({
             void: 0,
             frosted: 1,
