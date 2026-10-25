@@ -14,7 +14,8 @@ Built on [Quickshell](https://quickshell.org) (QML + GLSL), run as a small resid
 - Custom shaders are compiled by the daemon and hot-reloaded when you save them
   ([docs/shaders.md](docs/shaders.md))
 - Keyboard (arrows / Tab, Enter, and the letter keys of DankMaterialShell's power menu), mouse,
-  and hold-to-confirm for the destructive actions
+  and hold-to-confirm for the destructive actions; the compositor's key binds are suspended while
+  the rift is up
 - Follows DankMaterialShell's accent colour and font when it's there
 - ~165 fps on a 1440p/165 Hz NVIDIA setup; ~80 ms from keypress to first motion
 

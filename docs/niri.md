@@ -67,15 +67,20 @@ binds {
     // replaces DMS's power menu
     Mod+Escape { spawn "shatterlock" "toggle"; }
 
-    // lock; allowed while locked, so if the locker ever dies this brings it back
-    Mod+Shift+Escape allow-when-locked=true { spawn "shatterlock" "lock"; }
+    // lock; allowed while locked, so if the locker ever dies this brings it back, and while the
+    // rift is up, so it seals the open rift
+    Mod+Shift+Escape allow-when-locked=true allow-inhibiting=false { spawn "shatterlock" "lock"; }
 
     // another bind can open a different rift for that press only
     Mod+Ctrl+Escape { spawn "shatterlock" "open" "--actions" "suspend,shutdown" "--edge" "arcs"; }
 }
 ```
 
-niri binds keep working while the rift holds the keyboard, so the same bind closes it again.
+While the rift is up it suspends niri's binds (keyboard-shortcuts-inhibit), so keys can't switch
+workspaces or spawn things behind it; keys held with Ctrl, Alt or Super are dropped. A bind on
+Escape still closes the rift, as the key reaches it as Escape. Any other bind that should keep
+working while the rift is up needs `allow-inhibiting=false`. niri's mouse binds, touchpad gestures
+and hot corners aren't covered by the protocol and still work.
 
 With niri-flake's `programs.niri.settings`:
 

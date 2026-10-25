@@ -163,6 +163,15 @@ PanelWindow {
         id: clickThrough
     }
 
+    // While the rift is up the compositor's key binds are suspended: every key comes here, and
+    // anything that isn't one of the rift's own is dropped. Binds the compositor exempts (niri:
+    // allow-inhibiting=false) still work. A bind on Escape still closes the rift, since the key
+    // arrives here as Escape.
+    ShortcutInhibitor {
+        window: win
+        enabled: win.active
+    }
+
     // mode "menu": the action buttons; "lock": straight into sealing, no buttons (`now`: no
     // animation at all, for locking before sleep).
     function open(config, mode, now) {
@@ -1089,6 +1098,12 @@ PanelWindow {
             event.accepted = true;
             // A chosen action is on its way: nothing else, not even Esc.
             if (event.isAutoRepeat || win.lockPhase || menu.committed)
+                return;
+            // The compositor's binds land here too while the rift is up (see ShortcutInhibitor):
+            // a key with Ctrl, Alt or Super held is one of those, never a choice. Escape still
+            // closes, so a bind on it (Mod+Escape) works as before.
+            const bound = event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier);
+            if (bound && event.key !== Qt.Key_Escape)
                 return;
             switch (event.key) {
             case Qt.Key_Escape:
