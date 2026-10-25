@@ -68,7 +68,7 @@ blended over what's below.
 | `riftDist(uv)` | signed distance to the nearest broken edge: > 0 inside the rift, < 0 on the halves |
 | `riftUV(uv)` | rift coordinates: x along the crack 0 … 1, y across it −1 (one edge) … 1 (the other) |
 | `snapshot(uv)` | the screen as displayed (each half moved; nearest edge inside the rift) |
-| `crackAt(px)` | raw crack field of the closed screen (r distance, g along, b branches) |
+| `crackAt(px)` | raw crack field of the closed screen (r distance, g along) |
 | `toPx(uv)`, `toUv(px)` | convert between uv and pixels |
 | `accent()` | accent colour |
 | `hash12(p)`, `noise2(p)` | hash and value noise |

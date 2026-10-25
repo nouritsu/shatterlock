@@ -14,14 +14,9 @@ layout(std140, binding = 0) uniform buf {
     float uLength;    // length of the diagonal
     // 129 crack offsets along uNormal at evenly spaced points; element k of a matrix is m[k % 4][k / 4].
     mat4 uV0; mat4 uV1; mat4 uV2; mat4 uV3; mat4 uV4; mat4 uV5; mat4 uV6; mat4 uV7; mat4 uV8;
-    // 12 branch segments (x1, y1, x2, y2), unused ones far off-screen, and the spread value at
-    // which each one appears.
-    mat4 uB0; mat4 uB1; mat4 uB2;
-    mat4 uBR;
 };
 
 const int N = 128;
-const int BRANCHES = 12;
 
 float at(mat4 m, int k) { return m[k % 4][k / 4]; }
 
@@ -36,12 +31,6 @@ float crackV(int i) {
     if (m == 6) return at(uV6, k);
     if (m == 7) return at(uV7, k);
     return at(uV8, k);
-}
-
-vec4 branch(int i) {
-    mat4 m = i < 4 ? uB0 : (i < 8 ? uB1 : uB2);
-    int k = (i % 4) * 4;
-    return vec4(at(m, k), at(m, k + 1), at(m, k + 2), at(m, k + 3));
 }
 
 float segDist(vec2 p, vec2 a, vec2 b) {
@@ -77,16 +66,5 @@ void main() {
     }
     float signedDist = v >= vc ? d : -d;
 
-    float bd = 1e4;
-    float reveal = 2.0;
-    for (int i = 0; i < BRANCHES; i++) {
-        vec4 s = branch(i);
-        float bi = segDist(p, s.xy, s.zw);
-        if (bi < bd) {
-            bd = bi;
-            reveal = at(uBR, i);
-        }
-    }
-
-    fragColor = vec4(signedDist, clamp(u / uLength, 0.0, 1.0), bd, reveal);
+    fragColor = vec4(signedDist, clamp(u / uLength, 0.0, 1.0), 0.0, 0.0);
 }

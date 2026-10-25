@@ -6,7 +6,6 @@
 // lets shaders find the side of any pixel in O(1).
 
 var SAMPLES = 128;      // segments of the main crack (power of two for midpoint displacement)
-var MAX_BRANCH_SEGMENTS = 12;
 
 function mulberry32(seed) {
     var a = seed >>> 0;
@@ -18,7 +17,7 @@ function mulberry32(seed) {
     };
 }
 
-// opts: { width, height, corners: "bl-tr"|"tl-br", seed (number), jaggedness 0..1, branches (bool),
+// opts: { width, height, corners: "bl-tr"|"tl-br", seed (number), jaggedness 0..1,
 //         anchors: [t 0..1], anchorHalfLength px, anchorSlack px }
 function generate(opts) {
     var w = opts.width, h = opts.height;
@@ -75,31 +74,6 @@ function generate(opts) {
         return { x: from.x + dir.x * u + normal.x * vv, y: from.y + dir.y * u + normal.y * vv };
     }
 
-    // Hairline branches running off into either half; drawn on the halves and revealed when the
-    // spreading crack passes their root.
-    var branches = [];
-    if (opts.branches) {
-        var count = 4 + Math.floor(rand() * 3);
-        for (var b = 0; b < count && branches.length < MAX_BRANCH_SEGMENTS - 1; b++) {
-            var t0 = 0.06 + rand() * 0.88;
-            var side = rand() < 0.5 ? -1 : 1;
-            var p = pointAt(t0);
-            var ang = (20 + rand() * 40) * Math.PI / 180;
-            var along = rand() < 0.5 ? 1 : -1;
-            var segs = 2 + Math.floor(rand() * 2);
-            var len = 50 + rand() * 150;
-            for (var s = 0; s < segs && branches.length < MAX_BRANCH_SEGMENTS; s++) {
-                var segLen = len / segs * (0.7 + rand() * 0.6);
-                var a2 = ang + (rand() * 2 - 1) * 0.5;
-                var dx = (dir.x * Math.cos(a2) * along + normal.x * Math.sin(a2) * side) * segLen;
-                var dy = (dir.y * Math.cos(a2) * along + normal.y * Math.sin(a2) * side) * segLen;
-                var p2 = { x: p.x + dx, y: p.y + dy };
-                branches.push({ x1: p.x, y1: p.y, x2: p2.x, y2: p2.y, reveal: Math.min(1, t0 + 0.02 * (s + 1)) });
-                p = p2;
-            }
-        }
-    }
-
     // How far (px, along the normal) a screen point is from the closed crack; the rift between
     // halves parted by `gap` covers |offset| < gap / 2.
     function offsetFrom(x, y) {
@@ -119,7 +93,6 @@ function generate(opts) {
         length: length,
         angle: Math.atan2(dir.y, dir.x) * 180 / Math.PI,
         samples: v,
-        branches: branches,
         anchorPoints: anchors.map(function (t) { return pointAt(t); }),
         pointAt: pointAt,
         offsetFrom: offsetFrom
@@ -139,19 +112,4 @@ function packMatrices(values, count, pad) {
         out.push(chunk);
     }
     return out;
-}
-
-function branchFloats(branches) {
-    var coords = [], reveal = [];
-    for (var i = 0; i < MAX_BRANCH_SEGMENTS; i++) {
-        var b = branches[i];
-        if (b) {
-            coords.push(b.x1, b.y1, b.x2, b.y2);
-            reveal.push(b.reveal);
-        } else {
-            coords.push(-1e4, -1e4, -1e4, -1e4);
-            reveal.push(2);
-        }
-    }
-    return { coords: coords, reveal: reveal };
 }

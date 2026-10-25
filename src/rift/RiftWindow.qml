@@ -281,7 +281,6 @@ PanelWindow {
             corners: cfg.rift?.corners ?? "bl-tr",
             seed: seed,
             jaggedness: cfg.rift?.jaggedness ?? 0.6,
-            branches: cfg.rift?.branches ?? true,
             anchors: anchors,
             anchorHalfLength: lockAfterOpen ? 170 : buttonLength / 2 + 10,
             anchorSlack: Math.max(3, ((lockAfterOpen ? lockGap : gap) - buttonThickness) / 2 - 6)

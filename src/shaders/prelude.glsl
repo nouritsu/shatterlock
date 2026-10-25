@@ -39,8 +39,7 @@ layout(binding = 1) uniform sampler2D uSnapshot; // the frozen screen
 layout(binding = 2) uniform sampler2D uSdf;      // crack field of the closed screen:
                                                  //   r signed distance to the crack (px, < 0 on half A)
                                                  //   g position along the crack 0..1
-                                                 //   b distance to the nearest hairline branch (px)
-                                                 //   a spread value at which that branch appears
+                                                 //   b, a unused (0)
 layout(binding = 3) uniform sampler2D uSource;   // opening slot: the rift as composited so far
                                                  // (other slots get the snapshot here)
 

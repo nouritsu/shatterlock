@@ -1,13 +1,13 @@
 // The two halves of the frozen screen pushed apart; transparent inside the rift so the background
-// slot shows through. Also draws the hairline crack while it spreads, the branch hairlines, and a
-// dark bevel along the broken edges.
+// slot shows through. Also draws the hairline crack while it spreads and a dark bevel along the
+// broken edges.
 
 // One half's surface at its own (closed-screen) position q.
 vec3 surface(vec2 q) {
     // Past the screen's edge (uncovered as the halves part) the picture is mirrored back in and
     // kept in shadow; the crack field has no hairlines out there.
     bool inside = onScreen(q);
-    vec4 c = inside ? crackAt(q) : vec4(crackSide(q), 0.0, 1e4, 2.0);
+    vec4 c = inside ? crackAt(q) : vec4(crackSide(q), 0.0, 0.0, 0.0);
     vec3 col = obscuredSnapshot(mirrorPx(q), abs(c.r));
     if (!inside)
         col *= 0.6;
@@ -19,13 +19,8 @@ vec3 surface(vec2 q) {
     float bevel = 1.0 - smoothstep(0.0, 9.0, abs(c.r));
     col *= 1.0 - 0.55 * bevel * opened;
 
-    // Hairlines are cracks in the picture's glass: under the lock blur they go with the picture.
+    // The hairline is a crack in the picture's glass: under the lock blur it goes with the picture.
     float clear = 1.0 - obscureAmount(abs(c.r));
-
-    // Branch hairlines, revealed as the spreading crack passes their root.
-    float branch = (1.0 - smoothstep(0.35, 1.3, c.b)) * step(c.a, uSpread) * clear;
-    col = mix(col, vec3(0.03), 0.8 * branch);
-    col += accent() * 0.12 * branch;
 
     // The main hairline while spreading / sealing, with a bright tip at the spreading front.
     float line = (1.0 - smoothstep(0.45, 1.6, abs(c.r))) * step(c.g, uSpread) * uLine * clear;

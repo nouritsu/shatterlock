@@ -41,8 +41,7 @@
     "corners": "bl-tr",
     "seed": 1701,
     "width": 170,
-    "jaggedness": 0.6,
-    "branches": true
+    "jaggedness": 0.6
   },
   "animation": {
     "crackSpread": true,

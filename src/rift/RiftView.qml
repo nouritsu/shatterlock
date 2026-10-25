@@ -25,11 +25,6 @@ Item {
         const v = Crack.packMatrices(crack.samples, 9, 0);
         for (let i = 0; i < 9; i++)
             bake["uV" + i] = Qt.matrix4x4(...v[i]);
-        const br = Crack.branchFloats(crack.branches);
-        const b = Crack.packMatrices(br.coords, 3, -1e4);
-        for (let i = 0; i < 3; i++)
-            bake["uB" + i] = Qt.matrix4x4(...b[i]);
-        bake.uBR = Qt.matrix4x4(...Crack.packMatrices(br.reveal, 1, 2)[0]);
         bake.uFrom = Qt.vector2d(crack.from.x, crack.from.y);
         bake.uDir = Qt.vector2d(crack.dir.x, crack.dir.y);
         bake.uNormal = Qt.vector2d(crack.normal.x, crack.normal.y);
@@ -71,10 +66,6 @@ Item {
         property matrix4x4 uV6
         property matrix4x4 uV7
         property matrix4x4 uV8
-        property matrix4x4 uB0
-        property matrix4x4 uB1
-        property matrix4x4 uB2
-        property matrix4x4 uBR
 
         fragmentShader: Qt.resolvedUrl("../shaders/qsb/bake.qsb")
     }
