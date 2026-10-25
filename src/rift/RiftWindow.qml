@@ -265,22 +265,37 @@ PanelWindow {
         snap.captureSource = null;
     }
 
+    // The lock screen's user block stands upright in the middle of the rift (see LockUI): how far
+    // it reaches across and along a rift at `angle` degrees.
+    readonly property size lockBlock: Qt.size(220, 150)
+    function blockReach(angle) {
+        const a = Math.abs(angle) * Math.PI / 180;
+        const s = Math.abs(Math.sin(a)), c = Math.abs(Math.cos(a));
+        return {
+            across: (lockBlock.width * s + lockBlock.height * c) / 2,
+            along: (lockBlock.width * c + lockBlock.height * s) / 2
+        };
+    }
+
     function buildCrack() {
         const w = win.screen?.width ?? win.width;
         const h = win.screen?.height ?? win.height;
         const count = menuActions.length;
         const length = Math.hypot(w, h);
         const anchors = [];
-        if (lockAfterOpen) {
-            // Under the lock screen's groups (see LockUI.centreAt).
-            const squeeze = Math.min(1, length / 2900);
-            for (const px of [-190, 80])
-                anchors.push(0.5 + px * squeeze / length);
-        } else {
-            // Small outputs: squeeze the buttons together so they all fit along the diagonal.
-            const pitch = Math.min(buttonPitch, length * 0.82 / Math.max(1, count - 1));
-            for (let i = 0; i < count; i++)
-                anchors.push(0.5 + (i - (count - 1) / 2) * pitch / length);
+        // Small outputs: squeeze the buttons together so they all fit along the diagonal.
+        const pitch = Math.min(buttonPitch, length * 0.82 / Math.max(1, count - 1));
+        for (let i = 0; i < count; i++)
+            anchors.push(0.5 + (i - (count - 1) / 2) * pitch / length);
+        // Keep the middle flat for the user block whenever the rift may end up locking.
+        const flats = [];
+        if (lockAfterOpen || (cfg.lock?.enabled ?? true)) {
+            const reach = blockReach(Math.atan2(h, w) * 180 / Math.PI);
+            flats.push({
+                t: 0.5,
+                halfLength: reach.along + 16,
+                slack: Math.max(3, lockGap / 2 - reach.across - 6)
+            });
         }
 
         let seed = cfg.rift?.seed ?? 1;
@@ -294,8 +309,9 @@ PanelWindow {
             seed: seed,
             jaggedness: cfg.rift?.jaggedness ?? 0.6,
             anchors: anchors,
-            anchorHalfLength: lockAfterOpen ? 170 : buttonLength / 2 + 10,
-            anchorSlack: Math.max(3, ((lockAfterOpen ? lockGap : gap) - buttonThickness) / 2 - 6)
+            anchorHalfLength: buttonLength / 2 + 10,
+            anchorSlack: Math.max(3, (gap - buttonThickness) / 2 - 6),
+            flats: flats
         });
     }
 
@@ -600,6 +616,10 @@ PanelWindow {
 
     SequentialAnimation {
         id: unsealSeq
+        // The password's orbs flare and fade first (LockOrbs).
+        PauseAnimation {
+            duration: win.locker?.withPassword ? 180 : 0
+        }
         ParallelAnimation {
             NumberAnimation {
                 target: win

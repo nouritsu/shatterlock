@@ -37,6 +37,7 @@ Scope {
     property string message: ""
     property bool messageIsError: false
     property bool busy: false
+    property bool withPassword: false // a password was sent: its orbs are up when it unlocks
     property string pending: "" // typed before PAM asked for it
 
     // logind
@@ -72,6 +73,7 @@ Scope {
         message = "";
         messageIsError = false;
         busy = false;
+        withPassword = false;
         pending = "";
         clearInput();
     }
@@ -111,6 +113,7 @@ Scope {
         if (rift.phase !== "locked" || text === "" || busy)
             return;
         busy = true;
+        withPassword = true;
         message = "";
         if (pam.responseRequired) {
             pam.respond(text);
@@ -122,6 +125,7 @@ Scope {
 
     function failed(why) {
         busy = false;
+        withPassword = false;
         message = why;
         messageIsError = true;
         clearInput();

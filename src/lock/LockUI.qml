@@ -21,38 +21,14 @@ Item {
     readonly property color ink: "#eceaf4"
     readonly property var options: rift.cfg.lock ?? ({})
 
-    // The user and the password field are laid end to end along the rift, centred on its middle.
-    readonly property real spacing: 56
-    readonly property var offsets: {
-        const shown = [
-            {
-                id: "user",
-                w: userGroup.width,
-                off: !(options.showUser ?? true)
-            },
-            {
-                id: "field",
-                w: fieldGroup.width
-            }
-        ].filter(g => !g.off);
-        const total = shown.reduce((sum, g) => sum + g.w, 0) + spacing * (shown.length - 1);
-        const out = {};
-        let x = -total / 2;
-        for (const g of shown) {
-            out[g.id] = x + g.w / 2;
-            x += g.w + spacing;
-        }
-        return out;
+    // The middle of the rift, where the crack is kept flat for the user block (see
+    // RiftWindow.lockBlock), and how much the block shrinks to fit a steep rift.
+    readonly property point middle: {
+        const p = rift.crack?.pointAt(0.5);
+        return p ? Qt.point(p.x, p.y) : Qt.point(width / 2, height / 2);
     }
-
-    // Centre of a group placed `offsetPx` along the crack from its middle.
-    function centreAt(offsetPx) {
-        const crack = rift.crack;
-        if (!crack || offsetPx === undefined)
-            return Qt.point(0, 0);
-        const p = crack.pointAt(0.5 + offsetPx / crack.length);
-        return Qt.point(p.x, p.y);
-    }
+    readonly property real fit: Math.min(1, (rift.lockGap / 2 - 6) / rift.blockReach(angle).across)
+    readonly property bool typing: input.text.length > 0
 
     function focusInput() {
         input.forceActiveFocus();
@@ -134,23 +110,34 @@ Item {
         shadowHorizontalOffset: 0
     }
 
-    // Who is locked in
+    // In the rift: who is locked in, upright in the middle, with PAM's prompt or its last message
+    // under it. Typing sends it back into the rift, and the password appears as orbs instead.
     Column {
-        id: userGroup
-        readonly property point c: ui.centreAt(ui.offsets.user)
-        x: c.x - width / 2
-        y: c.y - height / 2
-        rotation: ui.angle
-        spacing: 6
-        visible: ui.offsets.user !== undefined
+        id: userBlock
+        property real sink: ui.typing ? 1 : 0
+        x: ui.middle.x - width / 2
+        y: ui.middle.y - height / 2
+        width: ui.rift.lockBlock.width
+        spacing: 4
+        scale: ui.fit * (1 - 0.4 * sink)
+        opacity: 1 - sink
+        visible: opacity > 0
+
+        Behavior on sink {
+            NumberAnimation {
+                duration: 220 * ui.rift.slowmo
+                easing.type: Easing.InOutCubic
+            }
+        }
 
         ClippingRectangle {
             id: avatar
             property int candidate: 0
             anchors.horizontalCenter: parent.horizontalCenter
-            width: 52
-            height: 52
-            radius: 26
+            visible: ui.options.showUser ?? true
+            width: 72
+            height: 72
+            radius: 36
             color: Qt.rgba(ui.accent.r, ui.accent.g, ui.accent.b, 0.25)
             border.width: 1
             border.color: Qt.rgba(ui.accent.r, ui.accent.g, ui.accent.b, 0.6)
@@ -159,7 +146,7 @@ Item {
                 anchors.fill: parent
                 source: avatar.candidate < ui.info.avatarCandidates.length ? "file://" + ui.info.avatarCandidates[avatar.candidate] : ""
                 fillMode: Image.PreserveAspectCrop
-                sourceSize: Qt.size(104, 104)
+                sourceSize: Qt.size(144, 144)
                 onStatusChanged: if (status === Image.Error)
                     avatar.candidate++
             }
@@ -168,105 +155,74 @@ Item {
                 visible: avatar.candidate >= ui.info.avatarCandidates.length
                 text: (ui.info.fullName || ui.info.userName).charAt(0).toUpperCase()
                 font.family: ui.rift.labelFamily
-                font.pixelSize: 22
+                font.pixelSize: 30
                 color: ui.ink
             }
         }
+        Item {
+            visible: avatar.visible
+            width: 1
+            height: 4
+        }
         Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: ui.info.fullName || ui.info.userName
+            width: parent.width
+            visible: avatar.visible
+            horizontalAlignment: Text.AlignHCenter
+            elide: Text.ElideRight
+            text: ui.info.userName
             font.family: ui.rift.labelFamily
-            font.pixelSize: 15
+            font.pixelSize: 17
             font.weight: Font.DemiBold
             color: ui.ink
         }
-    }
-
-    // Password
-    Item {
-        id: fieldGroup
-        readonly property point c: ui.centreAt(ui.offsets.field)
-        x: c.x - width / 2
-        y: c.y - height / 2
-        width: 320
-        height: 84
-        rotation: ui.angle
-
-        Rectangle {
-            id: field
-            width: parent.width
-            height: 48
-            radius: 24
-            color: Qt.rgba(1, 1, 1, input.activeFocus ? 0.08 : 0.05)
-            border.width: 1
-            border.color: Qt.rgba(ui.accent.r, ui.accent.g, ui.accent.b, ui.locker.busy ? 0.95 : 0.55)
-
-            SequentialAnimation on border.width {
-                running: ui.locker.busy
-                loops: Animation.Infinite
-                NumberAnimation {
-                    to: 2.5
-                    duration: 350
-                }
-                NumberAnimation {
-                    to: 1
-                    duration: 350
-                }
-            }
-
-            Text {
-                anchors.centerIn: parent
-                visible: input.text.length === 0
-                text: ui.locker.prompt
-                font.family: ui.rift.labelFamily
-                font.pixelSize: 15
-                color: Qt.rgba(1, 1, 1, 0.45)
-            }
-
-            Row {
-                anchors.centerIn: parent
-                spacing: 7
-                Repeater {
-                    model: Math.min(input.text.length, 22)
-                    Rectangle {
-                        width: 10
-                        height: 10
-                        radius: 5
-                        color: ui.accent
-                    }
-                }
-            }
-        }
-
         Text {
-            anchors.top: field.bottom
-            anchors.topMargin: 8
-            anchors.horizontalCenter: field.horizontalCenter
-            text: ui.locker.message
+            width: parent.width
+            visible: avatar.visible && ui.info.fullName !== "" && ui.info.fullName !== ui.info.userName
+            horizontalAlignment: Text.AlignHCenter
+            elide: Text.ElideRight
+            text: ui.info.fullName
             font.family: ui.rift.labelFamily
             font.pixelSize: 13
-            color: ui.locker.messageIsError ? "#ff9a9a" : Qt.rgba(1, 1, 1, 0.6)
+            color: Qt.rgba(1, 1, 1, 0.65)
+        }
+        Text {
+            width: parent.width
+            topPadding: 4
+            horizontalAlignment: Text.AlignHCenter
+            elide: Text.ElideRight
+            text: ui.locker.message || ui.locker.prompt
+            font.family: ui.rift.labelFamily
+            font.pixelSize: 13
+            color: ui.locker.message && ui.locker.messageIsError ? "#ff9a9a" : Qt.rgba(1, 1, 1, 0.5)
+        }
+    }
+
+    LockOrbs {
+        rift: ui.rift
+        count: input.text.length
+        busy: ui.locker.busy
+        leaving: ui.rift.phase === "unlocking"
+        accent: ui.accent
+    }
+
+    TextInput {
+        id: input
+        width: 0
+        height: 0
+        opacity: 0
+        echoMode: TextInput.Password
+        focus: true
+        onAccepted: ui.locker.submit(text)
+        Keys.onEscapePressed: {
+            if (text.length === 0 && ui.locker.preview)
+                ui.locker.cancelPreview();
+            text = "";
         }
 
-        TextInput {
-            id: input
-            width: 0
-            height: 0
-            opacity: 0
-            echoMode: TextInput.Password
-            focus: true
-            onAccepted: ui.locker.submit(text)
-            Keys.onEscapePressed: {
-                if (text.length === 0 && ui.locker.preview)
-                    ui.locker.cancelPreview();
-                text = "";
-            }
-
-            Connections {
-                target: ui.locker
-                function onClearInput() {
-                    input.text = "";
-                }
+        Connections {
+            target: ui.locker
+            function onClearInput() {
+                input.text = "";
             }
         }
     }

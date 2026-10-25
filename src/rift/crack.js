@@ -18,7 +18,8 @@ function mulberry32(seed) {
 }
 
 // opts: { width, height, corners: "bl-tr"|"tl-br", seed (number), jaggedness 0..1,
-//         anchors: [t 0..1], anchorHalfLength px, anchorSlack px }
+//         anchors: [t 0..1], anchorHalfLength px, anchorSlack px,
+//         flats: [{ t, halfLength, slack }] }
 function generate(opts) {
     var w = opts.width, h = opts.height;
     var from = opts.corners === "tl-br" ? { x: 0, y: 0 } : { x: 0, y: h };
@@ -40,21 +41,29 @@ function generate(opts) {
         amp *= 0.7;
     }
 
-    // Flatten around each button anchor so the rotated button always fits inside the gap.
-    var anchors = opts.anchors || [];
-    for (var a = 0; a < anchors.length; a++) {
-        var ua = anchors[a] * length;
-        var ia = Math.round(ua / du);
-        var va = v[ia];
-        var reach = opts.anchorHalfLength + 3 * du; // blend over a few samples beyond the button
+    // Flatten the crack within `slack` px of its height at t over `halfLength` px either side
+    // (blending out over a few samples beyond), so whatever sits there fits inside the gap.
+    function flatten(t, halfLength, slack) {
+        var ua = t * length;
+        var va = v[Math.round(ua / du)];
+        var reach = halfLength + 3 * du;
         for (var j = 0; j <= n; j++) {
             var dist = Math.abs(j * du - ua);
             if (dist > reach)
                 continue;
-            var slack = dist <= opts.anchorHalfLength ? opts.anchorSlack : opts.anchorSlack + (dist - opts.anchorHalfLength) * 0.8;
-            v[j] = Math.max(va - slack, Math.min(va + slack, v[j]));
+            var s = dist <= halfLength ? slack : slack + (dist - halfLength) * 0.8;
+            v[j] = Math.max(va - s, Math.min(va + s, v[j]));
         }
     }
+
+    // Under each button anchor, so the rotated button always fits, and any other flat stretches
+    // asked for (the lock screen's user block).
+    var anchors = opts.anchors || [];
+    for (var a = 0; a < anchors.length; a++)
+        flatten(anchors[a], opts.anchorHalfLength, opts.anchorSlack);
+    var flats = opts.flats || [];
+    for (var f = 0; f < flats.length; f++)
+        flatten(flats[f].t, flats[f].halfLength, flats[f].slack);
 
     // Limit slopes to ~55° so no edge gets too thin, then pin both ends back to the corners.
     var maxRise = Math.tan(55 * Math.PI / 180) * du;
