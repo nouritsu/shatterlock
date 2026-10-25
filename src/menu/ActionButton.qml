@@ -1,8 +1,8 @@
 import QtQuick
 
 // One action in the rift: icon over label, laid along the rift's angle by the menu. A soft glow
-// behind it shows the selection, swells while it is held (the rift's edges feed it, see
-// shaders/layers/charge.frag) and flashes when it pulses on the way to running.
+// behind it shows the selection; held, the button and its glow swell, and both flare when it
+// pulses on the way to running.
 Item {
     id: btn
 
@@ -33,7 +33,7 @@ Item {
     width: 150
     height: 96
     opacity: appear
-    scale: (0.85 + 0.15 * appear) * (selected ? 1.05 : 1) * (1 + 0.08 * holdProgress + 0.14 * swell)
+    scale: (0.85 + 0.15 * appear) * (selected ? 1.05 : 1) * (1 + 0.22 * holdProgress + 0.14 * swell)
 
     Behavior on scale {
         enabled: btn.pulse === 0 && btn.holdProgress === 0

@@ -33,8 +33,8 @@ Item {
     property bool awaitingRelease: false
     readonly property bool committed: pulseIndex >= 0
 
-    // The button drawing energy from the edges (shaders' uEnergy): which, and how much.
-    readonly property int energyIndex: pulseIndex >= 0 ? pulseIndex : holdIndex
+    // The button that is held or pulsing, and how charged it is (its glow swells with it).
+    readonly property int chargeIndex: pulseIndex >= 0 ? pulseIndex : holdIndex
     readonly property real charge: pulseIndex >= 0 ? (pulseFromHold ? 1 - pulse : 0) : (holdIndex >= 0 ? holdProgress : 0)
 
     signal fire(string id)
@@ -164,7 +164,7 @@ Item {
             hotkey: modelData.key ?? ""
             needsHold: modelData.confirm === "hold"
             selected: menu.selected === index
-            holdProgress: menu.energyIndex === index ? menu.charge : 0
+            holdProgress: menu.chargeIndex === index ? menu.charge : 0
             holdLeft: menu.holdIndex === index && holdAnim.running ? menu.holdMs * (1 - menu.holdProgress) : -1
             pulse: menu.pulseIndex === index ? menu.pulse : 0
             appear: Math.max(0, Math.min(1, menu.appear * (1 + stagger * (menu.actions.length - 1)) - stagger * index))

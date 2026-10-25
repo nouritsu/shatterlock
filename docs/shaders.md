@@ -56,7 +56,6 @@ blended over what's below.
 | `uOffA`, `uOffB` | vec2 | how far each half has moved, px |
 | `uMouse` | vec2 | cursor position, px |
 | `uHover` | float | highlighted action index, −1 for none |
-| `uEnergy` | vec4 | the action button drawing energy from the edges: centre (xy, px), hold charge 0 … 1 (z), press pulse 0 … 1 (w) |
 | `uAccent`, `uVoid` | vec4 | theme colours (premultiplied); prefer `accent()`, which also turns red with wrong-password waves |
 | `uSnapshot` | sampler2D | the screen: frozen, or live with `"live": true` |
 | `uSdf` | sampler2D | the crack field (use the helpers below) |

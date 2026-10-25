@@ -4,7 +4,6 @@ import Quickshell.Wayland
 import "crack.js" as Crack
 import "../menu"
 import "../lock"
-import "../fx"
 
 // Full-screen overlay for one output. Stays unmapped until open() (unless keepMapped); the
 // snapshot is taken before anything of ours is visible, so it never captures itself.
@@ -104,11 +103,6 @@ PanelWindow {
     property real time: 0          // seconds since the opening started
     property vector2d mouse: Qt.vector2d(-1, -1)
     property real hover: -1
-    // The button drawing energy from the edges: centre (px), hold charge, press pulse.
-    readonly property vector4d energy: {
-        const p = crack?.anchorPoints?.[menu.energyIndex];
-        return p ? Qt.vector4d(p.x, p.y, menu.charge, menu.pulse) : Qt.vector4d(-1e4, -1e4, 0, 0);
-    }
     readonly property var snapshot: snapTexture
     readonly property size snapshotSize: snap.sourceSize
 
@@ -363,17 +357,6 @@ PanelWindow {
         snapshotSource: snapTexture
         warming: win.phase === "warming"
         obscure: win.behindLock ? 0 : win.obscure
-    }
-
-    // A held or pressed button drawing energy from the edges, under the buttons. Drawn once while
-    // warming so its pipeline exists before the first press.
-    SlotLayer {
-        rift: win
-        view: view
-        visible: win.energy.z > 0 || (win.energy.w > 0 && win.energy.w < 1) || win.phase === "warming"
-        opacity: win.phase === "warming" ? 0.002 : 1
-        uSource: view.snapshot
-        fragmentShader: Qt.resolvedUrl("../shaders/qsb/charge.qsb")
     }
 
     onPhaseChanged: {
