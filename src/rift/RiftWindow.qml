@@ -274,7 +274,7 @@ PanelWindow {
         if (lockAfterOpen) {
             // Under the lock screen's groups (see LockUI.centreAt).
             const squeeze = Math.min(1, length / 2900);
-            for (const px of [-640, -300, 40, 400, 730])
+            for (const px of [-190, 80])
                 anchors.push(0.5 + px * squeeze / length);
         } else {
             // Small outputs: squeeze the buttons together so they all fit along the diagonal.

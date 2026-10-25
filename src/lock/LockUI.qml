@@ -1,12 +1,13 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Widgets
 
-// The lock screen's contents, laid along the rift like the menu: clock and date, who is locked
-// in, the password field, the media player and the status icons. Shown by the lock surface (and
-// by the overlay while sealing and in preview).
+// The lock screen's contents: the clock, what's playing and the status row out over the halves,
+// who is locked in and the password in the rift. Shown by the lock surface (and by the overlay
+// while sealing and in preview).
 Item {
     id: ui
 
@@ -20,15 +21,10 @@ Item {
     readonly property color ink: "#eceaf4"
     readonly property var options: rift.cfg.lock ?? ({})
 
-    // The groups are laid end to end along the rift, centred on its middle. When they don't fit
-    // (small outputs), optional ones go: status first, then media, then the user.
+    // The user and the password field are laid end to end along the rift, centred on its middle.
     readonly property real spacing: 56
     readonly property var offsets: {
-        const wanted = [
-            {
-                id: "clock",
-                w: clockGroup.width
-            },
+        const shown = [
             {
                 id: "user",
                 w: userGroup.width,
@@ -37,28 +33,11 @@ Item {
             {
                 id: "field",
                 w: fieldGroup.width
-            },
-            {
-                id: "media",
-                w: media.width,
-                off: !(options.showMedia ?? true) || info.player === null
-            },
-            {
-                id: "status",
-                w: statusGroup.width,
-                off: !(options.showStatus ?? true)
             }
-        ];
-        const total = list => list.reduce((sum, g) => sum + g.w, 0) + spacing * (list.length - 1);
-        let shown = wanted.filter(g => !g.off);
-        const room = (rift.crack?.length ?? 2900) * 0.84;
-        for (const drop of ["status", "media", "user"]) {
-            if (total(shown) <= room)
-                break;
-            shown = shown.filter(g => g.id !== drop);
-        }
+        ].filter(g => !g.off);
+        const total = shown.reduce((sum, g) => sum + g.w, 0) + spacing * (shown.length - 1);
         const out = {};
-        let x = -total(shown) / 2;
+        let x = -total / 2;
         for (const g of shown) {
             out[g.id] = x + g.w / 2;
             x += g.w + spacing;
@@ -88,30 +67,71 @@ Item {
         precision: SystemClock.Seconds
     }
 
-    // Clock and date
-    Column {
-        id: clockGroup
-        readonly property point c: ui.centreAt(ui.offsets.clock)
-        x: c.x - width / 2
-        y: c.y - height / 2
-        rotation: ui.angle
-        spacing: -4
+    // Out of the rift, over the halves: the time and date with what's playing under them in a
+    // top corner, the status row in a bottom one (corners the rift doesn't end in). A soft shadow
+    // keeps them readable over the frosted and glass blurs.
+    readonly property bool mirrored: rift.cfg.rift?.corners === "tl-br"
 
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: Qt.formatTime(clock.date, ui.options.timeFormat ?? "HH:mm")
-            font.family: ui.rift.labelFamily
-            font.pixelSize: 64
-            font.weight: Font.Light
-            color: ui.ink
+    Column {
+        x: ui.mirrored ? parent.width - width - 40 : 40
+        y: 24
+        spacing: 18
+        layer.enabled: true
+        layer.effect: Shadow {}
+
+        Column {
+            anchors.right: ui.mirrored ? parent.right : undefined
+            spacing: -6
+
+            Text {
+                anchors.right: ui.mirrored ? parent.right : undefined
+                text: Qt.formatTime(clock.date, ui.options.timeFormat ?? "HH:mm")
+                font.family: ui.rift.labelFamily
+                font.pixelSize: 88
+                font.weight: Font.Light
+                color: ui.ink
+            }
+            Text {
+                anchors.right: ui.mirrored ? parent.right : undefined
+                leftPadding: ui.mirrored ? 0 : 4
+                rightPadding: ui.mirrored ? 4 : 0
+                text: Qt.formatDate(clock.date, ui.options.dateFormat ?? "dddd, d MMMM")
+                font.family: ui.rift.labelFamily
+                font.pixelSize: 20
+                color: Qt.rgba(1, 1, 1, 0.75)
+            }
         }
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: Qt.formatDate(clock.date, ui.options.dateFormat ?? "dddd, d MMMM")
-            font.family: ui.rift.labelFamily
-            font.pixelSize: 16
-            color: Qt.rgba(1, 1, 1, 0.65)
+
+        LockMedia {
+            anchors.right: ui.mirrored ? parent.right : undefined
+            visible: (ui.options.showMedia ?? true) && ui.info.player !== null
+            player: ui.info.player
+            accent: ui.accent
+            ink: ui.ink
+            iconFamily: ui.rift.iconFamily
+            labelFamily: ui.rift.labelFamily
         }
+    }
+
+    LockStatus {
+        x: ui.mirrored ? 40 : parent.width - width - 40
+        y: parent.height - height - 28
+        visible: ui.options.showStatus ?? true
+        info: ui.info
+        accent: ui.accent
+        ink: ui.ink
+        iconFamily: ui.rift.iconFamily
+        labelFamily: ui.rift.labelFamily
+        layer.enabled: true
+        layer.effect: Shadow {}
+    }
+
+    component Shadow: MultiEffect {
+        shadowEnabled: true
+        shadowColor: Qt.rgba(0, 0, 0, 0.7)
+        shadowBlur: 0.8
+        shadowVerticalOffset: 2
+        shadowHorizontalOffset: 0
     }
 
     // Who is locked in
@@ -247,145 +267,6 @@ Item {
                 function onClearInput() {
                     input.text = "";
                 }
-            }
-        }
-    }
-
-    // Now playing
-    Row {
-        id: media
-        readonly property point c: ui.centreAt(ui.offsets.media)
-        readonly property var player: ui.info.player
-        x: c.x - width / 2
-        y: c.y - height / 2
-        rotation: ui.angle
-        spacing: 12
-        visible: ui.offsets.media !== undefined
-
-        ClippingRectangle {
-            width: 52
-            height: 52
-            radius: 10
-            color: Qt.rgba(1, 1, 1, 0.06)
-            Image {
-                anchors.fill: parent
-                source: media.player?.trackArtUrl ?? ""
-                fillMode: Image.PreserveAspectCrop
-                sourceSize: Qt.size(104, 104)
-                asynchronous: true
-            }
-        }
-
-        Column {
-            anchors.verticalCenter: parent.verticalCenter
-            width: 170
-            Text {
-                width: parent.width
-                elide: Text.ElideRight
-                text: media.player?.trackTitle || "Unknown title"
-                font.family: ui.rift.labelFamily
-                font.pixelSize: 14
-                font.weight: Font.DemiBold
-                color: ui.ink
-            }
-            Text {
-                width: parent.width
-                elide: Text.ElideRight
-                text: media.player?.trackArtist ?? ""
-                font.family: ui.rift.labelFamily
-                font.pixelSize: 12
-                color: Qt.rgba(1, 1, 1, 0.6)
-            }
-        }
-
-        Row {
-            id: controls
-            readonly property var player: media.player
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 4
-
-            Repeater {
-                model: [
-                    {
-                        icon: "skip_previous",
-                        enabled: controls.player?.canGoPrevious ?? false,
-                        act: () => controls.player.previous()
-                    },
-                    {
-                        icon: controls.player?.isPlaying ? "pause" : "play_arrow",
-                        enabled: controls.player?.canTogglePlaying ?? false,
-                        act: () => controls.player.togglePlaying()
-                    },
-                    {
-                        icon: "skip_next",
-                        enabled: controls.player?.canGoNext ?? false,
-                        act: () => controls.player.next()
-                    }
-                ]
-
-                Text {
-                    required property var modelData
-                    width: 30
-                    horizontalAlignment: Text.AlignHCenter
-                    text: modelData.icon
-                    font.family: ui.rift.iconFamily
-                    font.pixelSize: 26
-                    color: modelData.enabled ? (tap.containsMouse ? "#ffffff" : ui.accent) : Qt.rgba(1, 1, 1, 0.25)
-
-                    MouseArea {
-                        id: tap
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        enabled: parent.modelData.enabled
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: parent.modelData.act()
-                    }
-                }
-            }
-        }
-    }
-
-    // Battery and network
-    Row {
-        id: statusGroup
-        readonly property point c: ui.centreAt(ui.offsets.status)
-        x: c.x - width / 2
-        y: c.y - height / 2
-        rotation: ui.angle
-        spacing: 16
-        visible: ui.offsets.status !== undefined
-
-        Row {
-            visible: ui.info.hasBattery
-            spacing: 4
-            Text {
-                text: ui.info.batteryIcon
-                font.family: ui.rift.iconFamily
-                font.pixelSize: 22
-                color: ui.accent
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: `${ui.info.batteryPercent}%`
-                font.family: ui.rift.labelFamily
-                font.pixelSize: 14
-                color: ui.ink
-            }
-        }
-        Row {
-            spacing: 4
-            Text {
-                text: ui.info.netIcon
-                font.family: ui.rift.iconFamily
-                font.pixelSize: 22
-                color: ui.accent
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: ui.info.netName || "Offline"
-                font.family: ui.rift.labelFamily
-                font.pixelSize: 14
-                color: ui.ink
             }
         }
     }
