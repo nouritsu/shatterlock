@@ -80,6 +80,7 @@
   },
   "lock": {
     "enabled": true,
+    "ui": "rift",
     "pamService": "shatterlock",
     "fingerprintService": "shatterlock-fingerprint",
     "blur": "void",

@@ -36,6 +36,8 @@ layout(std140, binding = 0) uniform buf {
     float uAlertOn;     // 1 while wrong-password waves are up (see uAlert)
     float uSeam;        // how the crack is drawn: 0 a dark hairline with a bright tip and bevelled
                         // edges, 1 a sweeping line in the accent colour with clean edges
+    vec4 uAlertColor;   // what a wrong password turns things (ALERT): red, or the theme's error
+                        // colour with the Material lock screen
 };
 
 layout(binding = 1) uniform sampler2D uSnapshot; // the frozen screen
@@ -97,9 +99,9 @@ vec2 riftUV(vec2 uv) {
     return vec2(along, across);
 }
 
-// Wrong-password waves at the pixel being shaded, and the theme accent there: red wherever a wave
-// has reached.
-const vec3 ALERT = vec3(1.0, 0.16, 0.2);
+// Wrong-password waves at the pixel being shaded, and the theme accent there: the alert colour
+// wherever a wave has reached.
+#define ALERT (uAlertColor.rgb)
 vec4 alertHere() { return uAlertOn > 0.5 ? texture(uAlert, toUv(shatterlockPx)) : vec4(0.0); }
 vec3 accent() { return mix(uAccent.rgb, ALERT, alertHere().r); }
 

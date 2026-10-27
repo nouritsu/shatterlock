@@ -37,6 +37,7 @@ ShaderEffect {
     property vector4d uCrackLine: rift.crack ? Qt.vector4d(rift.crack.from.x, rift.crack.from.y, rift.crack.normal.x, rift.crack.normal.y) : Qt.vector4d(0, 0, 0, 1)
     property real uAlertOn: rift.alertOn ? 1 : 0
     property real uSeam: rift.cfg.rift?.seam === "sweep" ? 1 : 0
+    property color uAlertColor: rift.alertColor ?? Qt.rgba(1, 0.16, 0.2, 1)
     property var uAlert: view.alert
 
     // Heavy custom shaders can draw at a fraction of the output's resolution.

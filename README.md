@@ -9,8 +9,8 @@ Built on [Quickshell](https://quickshell.org) (QML + GLSL), run as a small resid
 
 - Crack from a seed (stable layout) or `random`; bottom-left→top-right or top-left→bottom-right
 - Two looks: the torn rift, or `"style": "material"` (Material Design: a smooth wave, sheets that
-  lift with shadows, tonal icon buttons with a focus ring and a progress ring, M3 motion and DMS's
-  Material colour roles)
+  lift with shadows, tonal icon buttons with a focus ring and a progress ring, M3 motion, DMS's
+  Material colour roles, and a lock screen with a scrim and the password as Expressive shapes)
 - Three effect slots — **background** (`void`, `image`, `surface`), **edge** (`glow`, `arcs`,
   `molten`, `glitch`, `elevation`), **opening** (`none`, `shards`, `glitch`, `molten`) — each a
   built-in, your own GLSL, or `random` from a pool
@@ -71,6 +71,7 @@ re-read whenever it changes. Unknown keys and wrong types are logged and fall ba
 | `theme.accent` | `auto` | `auto` follows DankMaterialShell (its Material colour roles too), else a colour |
 | `theme.voidColor`, `theme.font`, `theme.iconFont` | | |
 | `lock.enabled` | `true` | Lock uses shatterlock's own lock screen (else the Lock action's `command`) |
+| `lock.ui` | `rift` | `material`: the user block in Material colours, the password as Material's Expressive shapes (in the error colour when wrong), and Material's loading indicator while it is checked |
 | `lock.pamService` | `shatterlock` | PAM service; shatterlock won't lock unless `/etc/pam.d/<it>` exists |
 | `lock.fingerprintService` | `shatterlock-fingerprint` | optional second PAM service run alongside, for fingerprint readers |
 | `lock.blur` | `void` | how the screen is hidden while locked: `void` (dark fog), `frosted`, `glass`, `scrim` (Material: a soft blur under a dark scrim) |

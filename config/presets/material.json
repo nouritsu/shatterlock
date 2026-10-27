@@ -17,5 +17,9 @@
     "background": "surface",
     "edge": "elevation",
     "opening": "none"
+  },
+  "lock": {
+    "ui": "material",
+    "blur": "scrim"
   }
 }

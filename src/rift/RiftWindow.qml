@@ -162,7 +162,10 @@ PanelWindow {
     readonly property real alertSpeed: 2600 / slowmo // px/s
     readonly property bool alertOn: alertFade > 0
     readonly property real alert: alertOn ? alertFade * Math.max(0, Math.min(1, (time - alertBase - alertFirst) / Math.max(0.05, alertCovered - alertFirst))) : 0
-    readonly property color effectiveAccent: Qt.tint(accent, Qt.rgba(1, 0.16, 0.2, alert))
+    readonly property color effectiveAccent: Qt.tint(accent, Qt.alpha(alertColor, alert))
+    // What a wrong password turns things: red, or the error role with the Material lock screen.
+    readonly property bool materialLock: cfg.lock?.ui === "material"
+    readonly property color alertColor: materialLock ? (roles.error ?? "#f2b8b5") : Qt.rgba(1, 0.16, 0.2, 1)
     readonly property int openFrames: clock.openFrames
 
     property var crack: null

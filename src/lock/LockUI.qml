@@ -20,6 +20,14 @@ Item {
     readonly property color ink: "#eceaf4"
     readonly property var options: rift.cfg.lock ?? ({})
 
+    // The Material lock screen (lock.ui): the user block in Material roles (it sits on the rift's
+    // surface, which is light in a light theme), the password as Expressive shapes, and the loading
+    // indicator in place of the lock while PAM checks.
+    readonly property bool material: rift.materialLock ?? false
+    function role(name, fallback) {
+        return rift.roles?.[name] ?? fallback;
+    }
+
     // The middle of the rift, where the crack is kept flat for the user block (see
     // RiftWindow.lockBlock), and how much the block shrinks to fit a steep rift.
     readonly property point middle: {
@@ -136,8 +144,8 @@ Item {
             width: 72
             height: 72
             radius: 36
-            color: Qt.rgba(ui.accent.r, ui.accent.g, ui.accent.b, 0.18)
-            border.width: 1
+            color: ui.material ? ui.role("primary_container", "#55307f") : Qt.rgba(ui.accent.r, ui.accent.g, ui.accent.b, 0.18)
+            border.width: ui.material ? 0 : 1
             border.color: Qt.rgba(ui.accent.r, ui.accent.g, ui.accent.b, 0.6)
 
             Text {
@@ -149,7 +157,7 @@ Item {
                 font.variableAxes: {
                     "FILL": 1
                 }
-                color: ui.accent
+                color: ui.material ? ui.role("on_primary_container", "#f2e8ff") : ui.accent
             }
         }
         Item {
@@ -165,7 +173,7 @@ Item {
             font.family: ui.rift.labelFamily
             font.pixelSize: 17
             font.weight: Font.DemiBold
-            color: ui.ink
+            color: ui.material ? ui.role("on_surface", "#cdd6f4") : ui.ink
         }
         Text {
             width: parent.width
@@ -175,7 +183,7 @@ Item {
             text: ui.info.fullName
             font.family: ui.rift.labelFamily
             font.pixelSize: 13
-            color: Qt.rgba(1, 1, 1, 0.65)
+            color: ui.material ? ui.role("on_surface_variant", "#a6adc8") : Qt.rgba(1, 1, 1, 0.65)
         }
         Text {
             width: parent.width
@@ -186,7 +194,12 @@ Item {
             text: ui.locker.message || ui.locker.prompt
             font.family: ui.rift.labelFamily
             font.pixelSize: 13
-            color: ui.locker.message && ui.locker.messageIsError ? "#ff9a9a" : Qt.rgba(1, 1, 1, 0.5)
+            color: {
+                const error = ui.locker.message && ui.locker.messageIsError;
+                if (ui.material)
+                    return error ? ui.role("error", "#f2b8b5") : ui.role("on_surface_variant", "#a6adc8");
+                return error ? "#ff9a9a" : Qt.rgba(1, 1, 1, 0.5);
+            }
         }
     }
 
@@ -197,6 +210,10 @@ Item {
         busy: ui.locker.busy
         leaving: ui.rift.phase === "unlocking"
         accent: ui.accent
+        look: ui.material ? "shapes" : "orbs"
+        alertColor: ui.rift.alertColor
+        indicatorColor: ui.role("on_primary_container", "#f2e8ff")
+        indicatorContainer: ui.role("primary_container", "#55307f")
     }
 
     TextInput {

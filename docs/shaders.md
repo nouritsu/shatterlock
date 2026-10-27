@@ -62,6 +62,7 @@ blended over what's below.
 | `uSource` | sampler2D | opening slot: the rift as composited so far |
 | `uAlert`, `uAlertOn` | sampler2D, float | wrong-password waves on the lock screen, in screen space (r how red, g the wavefronts), and 1 while they are up |
 | `uSeam` | float | how the crack is drawn: 0 a dark hairline (`"rift": {"seam": "crack"}`), 1 a sweeping accent-coloured line with clean edges (`"sweep"`) |
+| `uAlertColor` | vec4 | what a wrong password turns things: red, or the theme's error colour with the Material lock screen (`accent()` already uses it) |
 
 ### Helpers
 

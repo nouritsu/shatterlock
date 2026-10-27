@@ -33,6 +33,7 @@ Singleton {
             "menu.buttons": ["glow", "material"],
             "animation.easing": ["rift", "material"],
             "idle": ["unmapped", "mapped"],
+            "lock.ui": ["rift", "material"],
             "lock.blur": ["void", "frosted", "glass", "scrim"],
             "motion": ["full", "reduced"]
         })

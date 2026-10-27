@@ -7,6 +7,10 @@ import QtQuick
 // backspace lets the last one sink back. While the password is checked they pulse together, and
 // once it's accepted they flare and fade. On a wrong password (reject) they turn red and shoot off
 // in random directions into the rift's edges.
+//
+// The "shapes" look (the Material lock screen) draws each character as one of Material's Expressive
+// shapes instead: it pops in morphing from a circle, and on a wrong password the shapes turn the
+// alert colour and fly into the edges the same way.
 Item {
     id: orbs
 
@@ -15,9 +19,14 @@ Item {
     property bool busy: false      // being checked
     property bool leaving: false   // accepted
     property color accent: "#cba6f7"
+    property string look: "orbs"            // or "shapes"
+    property color alertColor: "#ff4a55"   // what the shapes turn on a wrong password
+    property color indicatorColor: "#f2e8ff"     // the loading indicator (shapes look)
+    property color indicatorContainer: "#55307f" // and its circle
 
+    readonly property bool shapes: look === "shapes"
     readonly property int max: 32
-    readonly property real pitch: 26
+    readonly property real pitch: shapes ? 34 : 26
     readonly property int shown: Math.min(count, max)
     readonly property real angle: rift.crack?.angle ?? 0
     readonly property real halfGap: rift.gap * rift.progress / 2
@@ -34,6 +43,18 @@ Item {
     readonly property color red: "#ff4a55"
     readonly property int redMs: 90
     readonly property int burstMs: 220
+
+    // The shape each character has (shapes look): any of the first eleven (see shape.frag), never the
+    // same as the one before it.
+    property var picked: []
+    function pickShape(i) {
+        const before = i > 0 ? (picked[i - 1] ?? -1) : -1;
+        let s = Math.floor(Math.random() * (before < 0 ? 11 : 10));
+        if (before >= 0 && s >= before)
+            s += 1;
+        picked[i] = s;
+        return s;
+    }
 
     // Screen position of the point `s` px along the middle of the rift from its centre.
     function at(s) {
@@ -82,6 +103,7 @@ Item {
             fly.push({
                 x: p.x,
                 y: p.y,
+                shape: picked[i] ?? 0,
                 heading: side * a * 180 / Math.PI,
                 distance: distance,
                 start: start,
@@ -141,6 +163,7 @@ Item {
             property real presence: 0 // sinks to 0 when deleted
             property real birth: 1    // 0 .. 1 while it forms
             property var motes: []    // where its motes start, in its own frame, and when they set off
+            property int shape: 0     // shapes look: which shape it is
 
             // The motes drift in (most of the way), then the orb blooms where they meet.
             readonly property real bloom: Math.max(0, Math.min(1, (birth - 0.55) / 0.45))
@@ -152,7 +175,9 @@ Item {
                 s = targetS;
                 const crack = orbs.rift.crack;
                 const list = [];
-                for (let k = 0; crack && k < 3; k++) {
+                if (orbs.shapes)
+                    shape = orbs.pickShape(index);
+                for (let k = 0; crack && !orbs.shapes && k < 3; k++) {
                     const along = (Math.random() < 0.5 ? -1 : 1) * (90 + Math.random() * 230);
                     const across = (Math.random() * 2 - 1) * 0.55 * orbs.halfGap;
                     const from = orbs.at(s + along);
@@ -251,6 +276,7 @@ Item {
             }
 
             Item {
+                visible: !orbs.shapes
                 scale: orb.bloom * orb.swell * orb.presence * (1 + 0.22 * orbs.throb + 0.5 * orbs.leave)
                 opacity: orb.presence * (1 - orbs.leave)
 
@@ -273,6 +299,85 @@ Item {
                     color: orbs.core
                 }
             }
+
+            // Shapes look: it grows in with a little overshoot as it morphs from a circle into its
+            // shape, and grows and fades once the password is accepted.
+            ShaderEffect {
+                // Ease out with overshoot ("back").
+                readonly property real pop: 1 + 2.70158 * Math.pow(orb.birth - 1, 3) + 1.70158 * Math.pow(orb.birth - 1, 2)
+                visible: orbs.shapes
+                x: -26
+                y: -26
+                width: 52
+                height: 52
+                scale: pop * orb.presence * (1 + 0.5 * orbs.leave)
+                opacity: orb.presence * (1 - orbs.leave)
+                property color uColor: orbs.accent
+                property vector2d uSize: Qt.vector2d(width, height)
+                property real uRadius: 13
+                property real uShapeA: 0
+                property real uShapeB: orb.shape
+                property real uMix: Math.min(1, orb.birth / 0.7)
+                property real uSpin: 0
+                fragmentShader: Qt.resolvedUrl("../shaders/qsb/shape.qsb")
+            }
+        }
+    }
+
+    // Shapes look, while the password is checked: Material's loading indicator in a tonal circle
+    // just under the row, a shape that keeps turning and morphing through Material's sequence.
+    Item {
+        id: indicator
+        readonly property point p: orbs.at(0)
+        readonly property var sequence: [10, 8, 5, 2, 9, 11, 12] // soft burst, cookie, pentagon, pill, sunny, cookie, oval
+        property real step: 0
+        x: p.x
+        y: p.y
+        rotation: orbs.angle
+        visible: orbs.shapes && opacity > 0
+        opacity: orbs.busy && !orbs.leaving ? 1 : 0
+        scale: 0.6 + 0.4 * opacity
+
+        Behavior on opacity {
+            NumberAnimation {
+                duration: 150 * orbs.rift.slowmo
+                easing.type: Easing.OutCubic
+            }
+        }
+
+        NumberAnimation on step {
+            running: indicator.visible
+            from: 0
+            to: 7
+            duration: 7 * 650 * orbs.rift.slowmo
+            loops: Animation.Infinite
+        }
+
+        Rectangle {
+            x: -20
+            y: 38 - 20
+            width: 40
+            height: 40
+            radius: 20
+            color: orbs.indicatorContainer
+        }
+
+        ShaderEffect {
+            readonly property int at: Math.floor(indicator.step) % 7
+            readonly property real into: indicator.step - Math.floor(indicator.step)
+            x: -20
+            y: 38 - 20
+            width: 40
+            height: 40
+            property color uColor: orbs.indicatorColor
+            property vector2d uSize: Qt.vector2d(width, height)
+            property real uRadius: 11
+            property real uShapeA: indicator.sequence[at]
+            property real uShapeB: indicator.sequence[(at + 1) % 7]
+            // Holds each shape a moment, then morphs into the next.
+            property real uMix: Math.max(0, Math.min(1, (into - 0.35) / 0.65))
+            property real uSpin: indicator.step * 1.2
+            fragmentShader: Qt.resolvedUrl("../shaders/qsb/shape.qsb")
         }
     }
 
@@ -317,7 +422,7 @@ Item {
                 width: length
                 height: 4
                 radius: 2
-                visible: flyer.flight > 0 && flyer.burst === 0
+                visible: !orbs.shapes && flyer.flight > 0 && flyer.burst === 0
                 gradient: Gradient {
                     orientation: Gradient.Horizontal
                     GradientStop {
@@ -337,6 +442,7 @@ Item {
                 opacity: 1 - flyer.burst
 
                 ShaderEffect {
+                    visible: !orbs.shapes
                     x: -30
                     y: -30
                     width: 60
@@ -345,12 +451,29 @@ Item {
                     fragmentShader: Qt.resolvedUrl("../shaders/qsb/halo.qsb")
                 }
                 Rectangle {
+                    visible: !orbs.shapes
                     x: -6
                     y: -6
                     width: 12
                     height: 12
                     radius: 6
                     color: flyer.tint
+                }
+                // Shapes look: the shape itself, in the alert colour.
+                ShaderEffect {
+                    visible: orbs.shapes
+                    x: -26
+                    y: -26
+                    width: 52
+                    height: 52
+                    property color uColor: Qt.tint(orbs.accent, Qt.alpha(orbs.alertColor, flyer.redness))
+                    property vector2d uSize: Qt.vector2d(width, height)
+                    property real uRadius: 13
+                    property real uShapeA: flyer.modelData.shape ?? 0
+                    property real uShapeB: flyer.modelData.shape ?? 0
+                    property real uMix: 0
+                    property real uSpin: 0
+                    fragmentShader: Qt.resolvedUrl("../shaders/qsb/shape.qsb")
                 }
             }
         }
