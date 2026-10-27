@@ -17,6 +17,7 @@ ShellRoot {
         keepMapped: Config.current.idle === "mapped"
         accent: Theme.accent
         voidColor: Theme.voidColor
+        roles: Theme.roles
         iconFamily: Theme.iconFamily
         labelFamily: Theme.labelFamily
 

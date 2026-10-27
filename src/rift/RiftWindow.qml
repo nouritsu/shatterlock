@@ -61,6 +61,7 @@ PanelWindow {
 
     property color accent: "#cba6f7"
     property color voidColor: "#05040a"
+    property var roles: ({}) // Material colour roles (Theme.roles)
     property string iconFamily
     property string labelFamily
 

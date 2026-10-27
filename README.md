@@ -60,7 +60,7 @@ re-read whenever it changes. Unknown keys and wrong types are logged and fall ba
 | `fx.pool.<slot>` | | candidates for `random` |
 | `fx.renderScale.<slot>` | `1` | draw a slot at reduced resolution |
 | `fx.image` | | `path`, `fit` (`cover`/`contain`/`tile`/`parallax`), `blur` 0 … 1, `darken` 0 … 1 |
-| `theme.accent` | `auto` | `auto` follows DankMaterialShell, else a colour |
+| `theme.accent` | `auto` | `auto` follows DankMaterialShell (its Material colour roles too), else a colour |
 | `theme.voidColor`, `theme.font`, `theme.iconFont` | | |
 | `lock.enabled` | `true` | Lock uses shatterlock's own lock screen (else the Lock action's `command`) |
 | `lock.pamService` | `shatterlock` | PAM service; shatterlock won't lock unless `/etc/pam.d/<it>` exists |
