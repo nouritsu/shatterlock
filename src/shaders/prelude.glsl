@@ -30,7 +30,7 @@ layout(std140, binding = 0) uniform buf {
     vec4 uVoid;         // theme void colour, premultiplied RGBA
     float uWarn;        // 1 when a custom shader failed to build (the rift shows a red hairline)
     float uObscure;     // lock blur wave: 0 none .. 1 spread over the whole screen
-    float uObscureStyle; // 0 void fog, 1 frosted, 2 glass
+    float uObscureStyle; // 0 void fog, 1 frosted, 2 glass, 3 scrim (blur under a dark scrim)
     vec4 uCrackLine;    // the straight line the crack runs along: a corner it ends in (xy), and
                         // the unit normal pointing into half B (zw)
     float uAlertOn;     // 1 while wrong-password waves are up (see uAlert)
@@ -177,17 +177,31 @@ vec3 obscuredSnapshot(vec2 q, float edgeDist) {
         float grey = dot(col, vec3(0.299, 0.587, 0.114));
         col = mix(col, vec3(grey), 0.25 * k) * (1.0 - 0.18 * k);
         col += (hash12(floor(q)) - 0.5) * 0.06 * k;
-    } else {
+    } else if (uObscureStyle < 2.5) {
         // Glass: rippled, fluted glass bends and softens the picture; glints catch the light.
         vec2 n = vec2(noise2(q * 0.011 + iTime * 0.04), noise2(q * 0.011 + 37.0 - iTime * 0.03)) - 0.5;
         float flute = sin(dot(q, vec2(0.7071)) * 0.06 + n.x * 4.0);
         vec2 o = (n * 70.0 + vec2(flute * 10.0)) * k;
         col = textureLod(uSnapshot, toUv(q + o), 4.5 * k).rgb;
         col = col * (1.0 - 0.1 * k) + pow(max(0.0, flute), 12.0) * 0.18 * k + accent() * 0.06 * k;
+    } else {
+        // Scrim: Material's frosted look. A soft blur from the mip chain (a ring of taps, turned a
+        // little per pixel so it doesn't show blocks), a little less colour, and a dark scrim.
+        float lod = 5.0 * k;
+        float spin = hash12(floor(q * 0.5)) * 6.2832;
+        col = textureLod(uSnapshot, toUv(q), lod).rgb;
+        for (int i = 0; i < 6; i++) {
+            float a = spin + float(i) * 1.0472;
+            col += textureLod(uSnapshot, toUv(q + vec2(cos(a), sin(a)) * 16.0 * k), lod).rgb;
+        }
+        col /= 7.0;
+        float grey = dot(col, vec3(0.299, 0.587, 0.114));
+        col = mix(col, vec3(grey), 0.2 * k) * (1.0 - 0.45 * k);
     }
 
-    // The wavefront glows as it passes, and so do the fronts of wrong-password waves.
-    float ring = uObscure < 1.0 ? exp(-abs(edgeDist - obscureFront()) / 22.0) : 0.0;
+    // The wavefront glows as it passes (not under the scrim, whose front is plain), and so do the
+    // fronts of wrong-password waves.
+    float ring = uObscure < 1.0 && uObscureStyle < 2.5 ? exp(-abs(edgeDist - obscureFront()) / 22.0) : 0.0;
     return col + accent() * ring * 0.45 + vec3(ring * 0.15) + ALERT * alertHere().g * 0.45;
 }
 

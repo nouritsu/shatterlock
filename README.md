@@ -73,7 +73,7 @@ re-read whenever it changes. Unknown keys and wrong types are logged and fall ba
 | `lock.enabled` | `true` | Lock uses shatterlock's own lock screen (else the Lock action's `command`) |
 | `lock.pamService` | `shatterlock` | PAM service; shatterlock won't lock unless `/etc/pam.d/<it>` exists |
 | `lock.fingerprintService` | `shatterlock-fingerprint` | optional second PAM service run alongside, for fingerprint readers |
-| `lock.blur` | `void` | how the screen is hidden while locked: `void` (dark fog), `frosted`, `glass` |
+| `lock.blur` | `void` | how the screen is hidden while locked: `void` (dark fog), `frosted`, `glass`, `scrim` (Material: a soft blur under a dark scrim) |
 | `lock.waveMs`, `lock.width` | `900`, `250` | the blur wave's duration; the rift's width while locked |
 | `lock.idle.ac` / `lock.idle.battery` | `0` | lock after this many idle seconds (0: never) |
 | `lock.beforeSleep` | `true` | lock before suspend/hibernate (holds a logind delay inhibitor) |

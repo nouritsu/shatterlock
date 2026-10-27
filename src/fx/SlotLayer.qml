@@ -31,7 +31,8 @@ ShaderEffect {
     property real uObscureStyle: ({
             void: 0,
             frosted: 1,
-            glass: 2
+            glass: 2,
+            scrim: 3
         })[rift.obscureStyle] ?? 0
     property vector4d uCrackLine: rift.crack ? Qt.vector4d(rift.crack.from.x, rift.crack.from.y, rift.crack.normal.x, rift.crack.normal.y) : Qt.vector4d(0, 0, 0, 1)
     property real uAlertOn: rift.alertOn ? 1 : 0
