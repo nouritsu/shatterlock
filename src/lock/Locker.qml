@@ -31,7 +31,9 @@ Scope {
 
     // Locked for show only: the overlay plays the lock, PAM runs, but the session stays unlocked.
     property bool preview: false
-    readonly property bool sessionLocked: sessionLock.locked
+    // The compositor has locked the session. Not sessionLock.locked: Quickshell 0.3.2 doesn't
+    // notify that going false (fixed upstream after 0.3.2), so it would stay true after an unlock.
+    readonly property bool sessionLocked: sessionLock.secure
 
     // The output the rift locked on, by name. Outputs can go away and come back while locked (a
     // monitor waking from standby reconnects as a new screen), and the rift's own screen doesn't
