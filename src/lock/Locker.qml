@@ -10,8 +10,9 @@ import "../rift"
 
 // shatterlock's lock screen. Locking seals the rift (RiftWindow.seal: a blur wave runs out from its
 // edges while a copy of the snapshot is taken), then an ext-session-lock covers every output: the
-// rift's output shows the same rift with the password field, the others dark fog. Unlocking takes
-// PAM (password, or fingerprint where its service exists) or logind's Unlock.
+// rift's output (while it is gone, the focused one) shows the same rift with the password field,
+// the others dark fog. Unlocking takes PAM (password, or fingerprint where its service exists) or
+// logind's Unlock.
 //
 // It never locks without /etc/pam.d/<lock.pamService>: PAM without its service file falls back to
 // "other", which denies everyone. The shell then runs the Lock action's command instead.
@@ -31,6 +32,33 @@ Scope {
     // Locked for show only: the overlay plays the lock, PAM runs, but the session stays unlocked.
     property bool preview: false
     readonly property bool sessionLocked: sessionLock.locked
+
+    // The output the rift locked on, by name. Outputs can go away and come back while locked (a
+    // monitor waking from standby reconnects as a new screen), and the rift's own screen doesn't
+    // follow them back, so the lock surfaces find their place by this name.
+    property string output: ""
+    property string focusedOutput: "" // the compositor's focused output (NiriFocus)
+
+    // The output that shows the rift and the password field: the rift's own while it is connected,
+    // else the focused one, else the first. Every other output gets fog. Whenever an output is
+    // connected there is one, so the password field never disappears.
+    readonly property string mainOutput: mainScreen(Quickshell.screens)?.name ?? ""
+
+    function mainScreen(screens) {
+        let focused = null;
+        let first = null;
+        for (let i = 0; i < screens.length; i++) {
+            const s = screens[i];
+            if (s.name === "")
+                continue; // Qt's placeholder while no output is connected
+            if (s.name === output)
+                return s;
+            if (s.name === focusedOutput)
+                focused = s;
+            first = first ?? s;
+        }
+        return focused ?? first;
+    }
 
     // Password field
     property string prompt: "" // what PAM asks for when it isn't the password (a one-time code)
@@ -82,6 +110,7 @@ Scope {
     // The rift is sealed and its snapshot copied: take the session.
     function sealed(url) {
         snapshotUrl = url;
+        output = rift.screen?.name || output;
         if (preview)
             enterLocked();
         else
@@ -155,6 +184,7 @@ Scope {
         }
         preview = false;
         snapshotUrl = "";
+        output = "";
     }
 
     function cancelPreview() {
@@ -287,7 +317,7 @@ Scope {
 
         WlSessionLockSurface {
             id: surface
-            readonly property bool main: screen?.name === locker.rift.screen?.name
+            readonly property bool main: screen?.name === locker.mainOutput
             color: "black"
 
             Loader {

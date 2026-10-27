@@ -33,6 +33,7 @@ ShellRoot {
         id: locker
         rift: rift
         cfg: Config.current
+        focusedOutput: NiriFocus.focusedOutput
         onLockRequested: opts => root.lock(opts)
     }
 
@@ -329,13 +330,26 @@ ShellRoot {
         }
     }
 
-    // The rift's output went away (unplugged, turned off): drop the rift at once.
+    // The rift's output went away (unplugged, turned off): drop the rift at once. Except while
+    // locking or locked: then the lock screen moves to another output (Locker.mainOutput) and the
+    // rift with it, back onto its own output once that returns. Quickshell hides a window whose
+    // output went away, and a hidden one that was mid-animation stalls every timer, so the rift is
+    // shown again wherever it goes. With no output connected at all, it waits for one.
     Connections {
         target: Quickshell
         function onScreensChanged() {
             if (rift.phase === "idle" || rift.phase === "warming")
                 return;
             const screens = Quickshell.screens;
+            if (rift.lockPhase) {
+                const home = locker.mainScreen(screens);
+                if (home) {
+                    if (rift.screen !== home)
+                        rift.screen = home;
+                    rift.visible = true;
+                }
+                return;
+            }
             for (let i = 0; i < screens.length; i++) {
                 if (screens[i].name === rift.screen?.name)
                     return;

@@ -542,7 +542,14 @@ PanelWindow {
     property bool awaitingFrame: false
 
     function handBack() {
+        // The frozen screen is a picture of the output the rift locked on: if that output went away
+        // meanwhile, the rift is on another one and there is nothing to reveal.
+        const away = (locker?.output ?? "") !== "" && screen?.name !== locker.output;
         locker?.release();
+        if (away) {
+            finishClose();
+            return;
+        }
         phase = "revealing";
         awaitingFrame = true;
         frameTimeout.restart();
