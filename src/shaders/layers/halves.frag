@@ -15,12 +15,20 @@ vec3 surface(vec2 q) {
     float diag = length(iResolution);
     float opened = clamp(uGap / 24.0, 0.0, 1.0);
 
+    // The hairline is a crack in the picture's glass: under the lock blur it goes with the picture.
+    float clear = 1.0 - obscureAmount(abs(c.r));
+
+    if (uSeam > 0.5) {
+        // Sweep: a 4 px line in the accent colour runs along the crack with a rounded front, and
+        // the edges stay clean.
+        float ahead = max(0.0, c.g - uSpread) * diag;
+        float sweep = 1.0 - smoothstep(1.5, 2.5, length(vec2(ahead, c.r)));
+        return mix(col, accent(), sweep * uLine * clear);
+    }
+
     // Bevel: the broken edge falls away into the rift.
     float bevel = 1.0 - smoothstep(0.0, 9.0, abs(c.r));
     col *= 1.0 - 0.55 * bevel * opened;
-
-    // The hairline is a crack in the picture's glass: under the lock blur it goes with the picture.
-    float clear = 1.0 - obscureAmount(abs(c.r));
 
     // The main hairline while spreading / sealing, with a bright tip at the spreading front.
     float line = (1.0 - smoothstep(0.45, 1.6, abs(c.r))) * step(c.g, uSpread) * uLine * clear;

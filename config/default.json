@@ -44,7 +44,8 @@
     "jaggedness": 0.6,
     "shape": "jagged",
     "waveLength": 440,
-    "waveHeight": 28
+    "waveHeight": 28,
+    "seam": "crack"
   },
   "animation": {
     "crackSpread": true,

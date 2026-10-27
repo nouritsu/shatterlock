@@ -34,6 +34,8 @@ layout(std140, binding = 0) uniform buf {
     vec4 uCrackLine;    // the straight line the crack runs along: a corner it ends in (xy), and
                         // the unit normal pointing into half B (zw)
     float uAlertOn;     // 1 while wrong-password waves are up (see uAlert)
+    float uSeam;        // how the crack is drawn: 0 a dark hairline with a bright tip and bevelled
+                        // edges, 1 a sweeping line in the accent colour with clean edges
 };
 
 layout(binding = 1) uniform sampler2D uSnapshot; // the frozen screen

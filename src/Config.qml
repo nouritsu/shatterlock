@@ -24,6 +24,7 @@ Singleton {
     readonly property var choices: ({
             "rift.corners": ["bl-tr", "tl-br"],
             "rift.shape": ["jagged", "wave"],
+            "rift.seam": ["crack", "sweep"],
             "idle": ["unmapped", "mapped"],
             "lock.blur": ["void", "frosted", "glass"],
             "motion": ["full", "reduced"]

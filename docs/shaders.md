@@ -61,6 +61,7 @@ blended over what's below.
 | `uSdf` | sampler2D | the crack field (use the helpers below) |
 | `uSource` | sampler2D | opening slot: the rift as composited so far |
 | `uAlert`, `uAlertOn` | sampler2D, float | wrong-password waves on the lock screen, in screen space (r how red, g the wavefronts), and 1 while they are up |
+| `uSeam` | float | how the crack is drawn: 0 a dark hairline (`"rift": {"seam": "crack"}`), 1 a sweeping accent-coloured line with clean edges (`"sweep"`) |
 
 ### Helpers
 
