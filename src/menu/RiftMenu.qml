@@ -193,6 +193,7 @@ Item {
             y: (menu.points[index]?.y ?? 0) - height / 2
             rotation: menu.angle
             icon: modelData.icon ?? ""
+            tint: modelData.color || "transparent"
             selected: menu.selected === index
             holdProgress: menu.chargeIndex === index ? menu.charge : 0
             holdLeft: menu.holdIndex === index && holdAnim.running ? menu.holdMs * (1 - menu.holdProgress) : -1

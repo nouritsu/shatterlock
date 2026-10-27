@@ -1,9 +1,10 @@
 import QtQuick
 
 // One action as a Material icon button in the rift: an icon in a tonal circle, turned to the rift's
-// angle like the rest of the menu. Focused, it shows the focus ring; held, a progress ring fills
-// around it, the circle turns to the primary container and the icon gives way to the time still to
-// hold; it swells and flares as it pulses on the way to running.
+// angle like the rest of the menu. Focused, it shows the focus ring. Pressed, it takes on the
+// action's own colour (else the accent's): held, a progress ring fills around it, the circle turns
+// to that colour's container and the icon gives way to the time still to hold; it swells and
+// flares as it pulses on the way to running.
 Item {
     id: btn
 
@@ -15,6 +16,7 @@ Item {
     property real pulse: 0        // 0..1 while pulsing before it runs
     property real appear: 0       // 0 hidden .. 1 shown
     property color accent: "#cba6f7"
+    property color tint: "transparent" // the action's colour while pressed; transparent: the accent
     property var roles: ({})
     property string iconFamily
     property string labelFamily
@@ -22,7 +24,21 @@ Item {
     readonly property real radius: 32
     readonly property real swell: Math.sin(Math.PI * pulse)
     readonly property bool charged: holdProgress > 0 || pulse > 0
-    readonly property color ink: Qt.tint(role("on_secondary_container", "#cdd6f4"), Qt.alpha(role("on_primary_container", "#f2e8ff"), container))
+    readonly property color ink: Qt.tint(role("on_secondary_container", "#cdd6f4"), Qt.alpha(pressedInk, container))
+
+    // The pressed colours: the accent's roles, or Material-style tones of the action's colour for
+    // the theme's mode (dark: a light ring on a deep circle; light: the other way round).
+    property color surfaceTone: role("surface", "#1e1e2e")
+    readonly property bool dark: surfaceTone.hslLightness < 0.5
+    readonly property bool tinted: tint.a > 0
+    readonly property color pressedRing: tinted ? toward(dark ? 1 : 0, dark ? 0.45 : 0.2) : role("primary", accent)
+    readonly property color pressedContainer: tinted ? toward(dark ? 0 : 1, dark ? 0.55 : 0.75) : role("primary_container", "#55307f")
+    readonly property color pressedInk: tinted ? toward(dark ? 1 : 0, dark ? 0.8 : 0.6) : role("on_primary_container", "#f2e8ff")
+
+    // The tint moved `t` of the way to white (1) or black (0).
+    function toward(level, t) {
+        return Qt.rgba(tint.r + (level - tint.r) * t, tint.g + (level - tint.g) * t, tint.b + (level - tint.b) * t, 1);
+    }
 
     function role(name, fallback) {
         return roles?.[name] ?? fallback;
@@ -69,7 +85,7 @@ Item {
         height: width
         visible: btn.swell > 0
         opacity: 0.7 * btn.swell
-        property color uColor: btn.role("primary", btn.accent)
+        property color uColor: btn.pressedRing
         fragmentShader: Qt.resolvedUrl("../shaders/qsb/halo.qsb")
     }
 
@@ -77,10 +93,10 @@ Item {
         anchors.fill: parent
         property vector2d uSize: Qt.vector2d(width, height)
         property real uRadius: btn.radius
-        property color uContainer: Qt.tint(btn.role("secondary_container", "#313244"), Qt.alpha(btn.role("primary_container", "#55307f"), btn.container))
+        property color uContainer: Qt.tint(btn.role("secondary_container", "#313244"), Qt.alpha(btn.pressedContainer, btn.container))
         property color uFocusColor: btn.role("secondary", btn.accent)
         property real uFocus: btn.focusShown
-        property color uArcColor: btn.role("primary", btn.accent)
+        property color uArcColor: btn.pressedRing
         property color uTrackColor: btn.role("secondary_container", "#313244")
         // A held action pulses with a full ring that fades; an instant one shows none.
         property real uArc: btn.pulse > 0 ? 1 : btn.holdProgress

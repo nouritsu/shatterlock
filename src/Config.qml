@@ -199,6 +199,11 @@ Singleton {
                     console.warn(`shatterlock: actionDefs.${id}.after must be "vanish" or "stay"; using "stay"`);
                 def.after = "stay";
             }
+            if (typeof def.color !== "string") {
+                if (def.color !== undefined)
+                    console.warn(`shatterlock: actionDefs.${id}.color must be a colour; using the accent`);
+                def.color = "";
+            }
         }
         cfg.actions = cfg.actions.filter(id => {
             const def = cfg.actionDefs[id];

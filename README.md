@@ -55,14 +55,14 @@ re-read whenever it changes. Unknown keys and wrong types are logged and fall ba
 |---|---|---|
 | `style` | `rift` | `material` turns on the Material Design look: the settings in [config/presets/material.json](config/presets/material.json), under your own |
 | `actions` | all seven | which actions to show, in order |
-| `actionDefs.<id>` | | `label`, `icon` (Material Symbols name), `key`, `confirm` (`instant`/`hold`), `command` (argv), `after` (`vanish`: close then run; `stay`: show `status` while it runs), `requires` (logind `Can…` check). Add your own ids for custom actions. |
+| `actionDefs.<id>` | | `label`, `icon` (Material Symbols name), `key`, `confirm` (`instant`/`hold`), `color` (Material buttons, while pressed; empty: the accent), `command` (argv), `after` (`vanish`: close then run; `stay`: show `status` while it runs), `requires` (logind `Can…` check). Add your own ids for custom actions. |
 | `rift.corners` | `bl-tr` | crack direction |
 | `rift.seed` | `1701` | number, or `random` for a new crack every time |
 | `rift.width` | `170` | gap between the halves, px |
 | `rift.jaggedness` | `0.6` | 0 … 1 |
 | `rift.shape` | `jagged` | `wave`: a smooth wave (`rift.waveLength`, `rift.waveHeight` px), calm in the middle |
 | `rift.seam` | `crack` | `sweep`: a line in the accent colour runs along it before the halves part, and their edges stay clean |
-| `menu.buttons` | `glow` | `material`: icon buttons in tonal circles, no labels; a held one counts down in place of its icon |
+| `menu.buttons` | `glow` | `material`: icon buttons in tonal circles, no labels; pressed, one takes its action's `color`, and a held one counts down in place of its icon |
 | `animation.*` | | `crackSpread`, `spreadMs`, `openMs`, `overshoot`, `closeMs`, `holdMs`, `easing` (`rift`, or `material`: Material Design's emphasized curves, no settle) |
 | `fx.background` / `edge` / `opening` | `void` / `glow` / `none` | built-in, `file.frag`, or `random` |
 | `fx.pool.<slot>` | | candidates for `random` |
