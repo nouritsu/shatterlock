@@ -161,6 +161,12 @@ Item {
                 options: view.rift.cfg.fx?.image ?? ({})
             }
         }
+        // "surface": the lowest Material surface, flat.
+        Rectangle {
+            anchors.fill: parent
+            visible: view.rift.backgroundFx?.kind === "surface"
+            color: view.rift.roles?.surface_container_lowest ?? view.rift.voidColor
+        }
         SlotLayer {
             rift: view.rift
             view: view

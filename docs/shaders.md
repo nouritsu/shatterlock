@@ -5,8 +5,8 @@ fragment shader:
 
 | Slot | Drawn | Built-ins |
 |---|---|---|
-| `background` | under the halves; only the rift shows it | `void`, `image` |
-| `edge` | over the halves, around the broken edges | `glow`, `arcs`, `molten`, `glitch` |
+| `background` | under the halves; only the rift shows it | `void`, `image`, `surface` |
+| `edge` | over the halves, around the broken edges | `glow`, `arcs`, `molten`, `glitch`, `elevation` |
 | `opening` | only while the crack spreads and the halves part; post-processes the whole rift | `none`, `shards`, `glitch`, `molten` |
 
 ## Using one

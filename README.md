@@ -8,9 +8,9 @@ slams it shut and you're back.
 Built on [Quickshell](https://quickshell.org) (QML + GLSL), run as a small resident daemon.
 
 - Crack from a seed (stable layout) or `random`; bottom-left→top-right or top-left→bottom-right
-- Three effect slots — **background** (`void`, `image`), **edge** (`glow`, `arcs`, `molten`,
-  `glitch`), **opening** (`none`, `shards`, `glitch`, `molten`) — each a built-in, your own GLSL,
-  or `random` from a pool
+- Three effect slots — **background** (`void`, `image`, `surface`), **edge** (`glow`, `arcs`,
+  `molten`, `glitch`, `elevation`), **opening** (`none`, `shards`, `glitch`, `molten`) — each a
+  built-in, your own GLSL, or `random` from a pool
 - Custom shaders are compiled by the daemon and hot-reloaded when you save them
   ([docs/shaders.md](docs/shaders.md))
 - Keyboard (arrows / Tab, Enter, and the letter keys of DankMaterialShell's power menu), mouse,

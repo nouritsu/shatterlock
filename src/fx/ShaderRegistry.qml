@@ -18,13 +18,15 @@ Scope {
     readonly property var builtins: ({
             background: {
                 void: "void",
-                image: "#image"
+                image: "#image",
+                surface: "#surface"
             },
             edge: {
                 glow: "glow",
                 arcs: "arcs",
                 molten: "molten",
-                glitch: "glitch_edge"
+                glitch: "glitch_edge",
+                elevation: "elevation"
             },
             opening: {
                 none: "#none",
@@ -86,8 +88,8 @@ Scope {
         return name;
     }
 
-    // { kind: "shader" | "image" | "shards" | "none", url, failed }. Callers pass `builds` so their
-    // bindings re-evaluate when a custom shader finishes (re)building.
+    // { kind: "shader" | "image" | "surface" | "shards" | "none", url, failed }. Callers pass
+    // `builds` so their bindings re-evaluate when a custom shader finishes (re)building.
     function lookup(slot, name, buildsNow) {
         if (isCustom(name)) {
             const b = buildsNow[pathFor(name)];
