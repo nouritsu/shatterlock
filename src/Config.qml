@@ -26,6 +26,7 @@ Singleton {
             "rift.shape": ["jagged", "wave"],
             "rift.seam": ["crack", "sweep"],
             "menu.buttons": ["glow", "material"],
+            "animation.easing": ["rift", "material"],
             "idle": ["unmapped", "mapped"],
             "lock.blur": ["void", "frosted", "glass"],
             "motion": ["full", "reduced"]

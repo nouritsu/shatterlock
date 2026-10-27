@@ -67,6 +67,13 @@ PanelWindow {
 
     // Material Design pieces of the look.
     readonly property bool materialButtons: cfg.menu?.buttons === "material"
+    readonly property bool materialMotion: cfg.animation?.easing === "material"
+    // The slam shut settles with a small shake, except with Material motion.
+    readonly property bool settles: !reducedMotion && !materialMotion
+    // Material easing curves (Easing.BezierSpline).
+    readonly property var emphasizedDecelerate: [0.05, 0.7, 0.1, 1, 1, 1]
+    readonly property var emphasizedAccelerate: [0.3, 0, 0.8, 0.15, 1, 1]
+    readonly property var standardDecelerate: [0, 0, 0, 1, 1, 1]
 
     // An action was chosen (and confirmed, if it needs holding).
     signal triggered(string id)
@@ -395,7 +402,8 @@ PanelWindow {
             property: "spread"
             to: 1
             duration: win.crackSpread ? win.spreadMs : 0
-            easing.type: Easing.InQuad
+            easing.type: win.materialMotion ? Easing.BezierSpline : Easing.InQuad
+            easing.bezierCurve: win.emphasizedAccelerate
         }
         ScriptAction {
             script: win.phase = "opening"
@@ -407,8 +415,9 @@ PanelWindow {
                 from: 0
                 to: 1
                 duration: win.openMs
-                easing.type: win.overshoot > 0 ? Easing.OutBack : Easing.OutCubic
+                easing.type: win.materialMotion ? Easing.BezierSpline : win.overshoot > 0 ? Easing.OutBack : Easing.OutCubic
                 easing.overshoot: win.overshoot * 17
+                easing.bezierCurve: win.emphasizedDecelerate
             }
             NumberAnimation {
                 target: win
@@ -425,7 +434,8 @@ PanelWindow {
                     property: "appear"
                     to: 1
                     duration: 260
-                    easing.type: Easing.OutCubic
+                    easing.type: win.materialMotion ? Easing.BezierSpline : Easing.OutCubic
+                    easing.bezierCurve: win.standardDecelerate
                 }
             }
         }
@@ -445,7 +455,8 @@ PanelWindow {
                 property: "progress"
                 to: 1
                 duration: win.openMs * 0.6
-                easing.type: Easing.OutCubic
+                easing.type: win.materialMotion ? Easing.BezierSpline : Easing.OutCubic
+                easing.bezierCurve: win.emphasizedDecelerate
             }
             NumberAnimation {
                 target: win
@@ -857,7 +868,8 @@ PanelWindow {
                 property: "progress"
                 to: 0
                 duration: win.closeMs
-                easing.type: Easing.InQuad
+                easing.type: win.materialMotion ? Easing.BezierSpline : Easing.InQuad
+                easing.bezierCurve: win.emphasizedAccelerate
             }
             NumberAnimation {
                 target: win
@@ -876,14 +888,14 @@ PanelWindow {
             NumberAnimation {
                 target: win
                 property: "shake"
-                to: win.reducedMotion ? 0 : 2
+                to: win.settles ? 2 : 0
                 duration: 30
                 easing.type: Easing.OutQuad
             }
             NumberAnimation {
                 target: win
                 property: "shake"
-                to: win.reducedMotion ? 0 : -1
+                to: win.settles ? -1 : 0
                 duration: 45
                 easing.type: Easing.InOutQuad
             }

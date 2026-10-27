@@ -56,7 +56,8 @@
     "openMs": 330,
     "overshoot": 0.08,
     "closeMs": 200,
-    "holdMs": 600
+    "holdMs": 600,
+    "easing": "rift"
   },
   "fx": {
     "background": "void",
