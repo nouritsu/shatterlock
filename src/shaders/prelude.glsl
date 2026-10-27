@@ -131,6 +131,13 @@ float fbm(vec2 p) {
 // The lock blur wave runs out from the broken edges. How far it has got (px), and how obscured a
 // point that far from its edge is: 1 behind the wavefront, 0 ahead of it.
 float obscureFront() { return uObscure * (length(iResolution) + 160.0); }
+
+// How far the screen's farthest point is from the straight line the crack runs along, px.
+float farthestFromCrack() {
+    vec2 a = abs(vec2(dot(-uCrackLine.xy, uCrackLine.zw), dot(vec2(iResolution.x, 0.0) - uCrackLine.xy, uCrackLine.zw)));
+    vec2 b = abs(vec2(dot(vec2(0.0, iResolution.y) - uCrackLine.xy, uCrackLine.zw), dot(iResolution - uCrackLine.xy, uCrackLine.zw)));
+    return max(max(a.x, a.y), max(b.x, b.y));
+}
 float obscureAmount(float edgeDist) {
     return uObscure >= 1.0 ? 1.0 : 1.0 - smoothstep(obscureFront() - 140.0, obscureFront(), edgeDist);
 }
@@ -148,7 +155,7 @@ vec3 obscuredSnapshot(vec2 q, float edgeDist) {
         // Void fog: the picture sinks into dark, accent-tinted fog with slow smoke curling through.
         // While unlocking it streams back into the rift as it clears.
         vec3 remains = textureLod(uSnapshot, toUv(q), 7.0 * k).rgb;
-        float back = uPhase > 7.5 && uPhase < 8.5 ? 1.0 - uObscure : 0.0;
+        float back = uPhase > 7.5 && uPhase < 8.5 ? 1.0 - clamp(obscureFront() / farthestFromCrack(), 0.0, 1.0) : 0.0;
         vec2 intoRift = uCrackLine.zw * (crackSide(q) < 0.0 ? 1.0 : -1.0);
         vec2 p = (q - intoRift * 220.0 * back) * 0.0035;
         vec2 drift = vec2(iTime * 0.035, -iTime * 0.022);

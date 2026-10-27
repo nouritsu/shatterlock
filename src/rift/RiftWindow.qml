@@ -55,8 +55,7 @@ PanelWindow {
     readonly property int spreadMs: (cfg.animation?.spreadMs ?? 120) * slowmo
     readonly property int openMs: (cfg.animation?.openMs ?? 330) * (reducedMotion ? 0.6 : 1) * slowmo
     readonly property int closeMs: (cfg.animation?.closeMs ?? 200) * slowmo
-    readonly property int unsealMs: 450 * slowmo // the fog clearing on unlock
-    readonly property int unsealCloseMs: Math.min(unsealMs, closeMs * 1.5) // halves closing then
+    readonly property int unsealMs: 450 * slowmo // the fog clearing and the halves closing on unlock
     readonly property real overshoot: reducedMotion ? 0 : cfg.animation?.overshoot ?? 0.08
 
     property color accent: "#cba6f7"
@@ -122,6 +121,35 @@ PanelWindow {
     // Lock blur wave: 0 none .. 1 over the whole screen, and how it looks (config lock.blur).
     property real obscure: 0
     readonly property string obscureStyle: cfg.lock?.blur ?? "void"
+
+    // Unlocking: a wall closing in on the crack, its distance from it in px. The fog's front rides
+    // it in to the broken edges, then the edges carry on with it until they meet, so the fog and
+    // the halves close at one speed. It starts just past the farthest fogged point (fogReach).
+    property real wall: 0
+    onWallChanged: {
+        if (phase !== "unlocking")
+            return;
+        const half = gap / 2;
+        progress = Math.min(wall, half) / half;
+        lineAlpha = 1 - progress;
+        // The shaders put the fog's front obscure × (diagonal + 160) px from the edges.
+        obscure = Math.max(0, wall - half) / (Math.hypot(width, height) + 160);
+    }
+
+    // Where the wall starts: as far from the crack as the farthest point of the screen, plus the
+    // crack's own bends and the soft edge of the fog's front.
+    function fogReach() {
+        if (!crack)
+            return gap / 2;
+        const corners = [Qt.point(0, 0), Qt.point(width, 0), Qt.point(0, height), Qt.point(width, height)];
+        let far = 0;
+        for (let i = 0; i < corners.length; i++)
+            far = Math.max(far, Math.abs((corners[i].x - crack.from.x) * crack.normal.x + (corners[i].y - crack.from.y) * crack.normal.y));
+        let bend = 0;
+        for (let i = 0; i < crack.samples.length; i++)
+            bend = Math.max(bend, Math.abs(crack.samples[i]));
+        return far + bend + 140;
+    }
 
     // Wrong password: red waves spread from where the orbs hit the edges (reject) until they cover
     // the screen, then fade. The rift's shaders read them per pixel (RiftView.alert); `alert` is
@@ -540,8 +568,8 @@ PanelWindow {
             lockLoader.item?.focusInput();
     }
 
-    // Unlocked: the fog clears as the halves slam shut, the session is given back, then the frozen
-    // screen fades into the live one.
+    // Unlocked: the fog clears into the rift and the halves close behind it, the session is given
+    // back, then the frozen screen fades into the live one.
     //
     // While the session is locked this window is hidden behind the lock surface and niri only lets
     // it draw about once a second, so whatever it shows when the lock goes is that old frame. So
@@ -716,7 +744,14 @@ PanelWindow {
         PauseAnimation {
             duration: win.locker?.withPassword ? 180 : 0
         }
-        // The fog clears as the halves slam shut, both ending together.
+        // One wall closes in on the rift at a steady speed: the fog clears into the rift, and the
+        // halves carry on from there until they meet (see wall).
+        ScriptAction {
+            script: {
+                win.spread = 1;
+                win.wall = win.fogReach();
+            }
+        }
         ParallelAnimation {
             NumberAnimation {
                 target: win
@@ -726,36 +761,9 @@ PanelWindow {
             }
             NumberAnimation {
                 target: win
-                property: "obscure"
+                property: "wall"
                 to: 0
                 duration: win.unsealMs
-                easing.type: Easing.InQuad
-            }
-            SequentialAnimation {
-                PauseAnimation {
-                    duration: win.unsealMs - win.unsealCloseMs
-                }
-                ParallelAnimation {
-                    NumberAnimation {
-                        target: win
-                        property: "progress"
-                        to: 0
-                        duration: win.unsealCloseMs
-                        easing.type: Easing.InQuad
-                    }
-                    NumberAnimation {
-                        target: win
-                        property: "lineAlpha"
-                        to: 1
-                        duration: win.unsealCloseMs
-                    }
-                    NumberAnimation {
-                        target: win
-                        property: "spread"
-                        to: 1
-                        duration: 0
-                    }
-                }
             }
         }
         // Settle, and let the seam fade.
