@@ -41,7 +41,10 @@
     "corners": "bl-tr",
     "seed": 1701,
     "width": 170,
-    "jaggedness": 0.6
+    "jaggedness": 0.6,
+    "shape": "jagged",
+    "waveLength": 440,
+    "waveHeight": 28
   },
   "animation": {
     "crackSpread": true,

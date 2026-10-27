@@ -17,10 +17,16 @@ function mulberry32(seed) {
     };
 }
 
-// opts: { width, height, corners: "bl-tr"|"tl-br", seed (number), jaggedness 0..1,
+// opts: { width, height, corners: "bl-tr"|"tl-br", seed (number),
+//         shape: "jagged" (default) | "wave", jaggedness 0..1, waveLength px, waveHeight px,
 //         anchors: [t 0..1], anchorHalfLength px, anchorSlack px,
 //         flats: [{ t, halfLength, slack }] }
+//
+// A wave is a smooth sine (its phase from the seed); it ignores the anchors, and its flats ease it
+// back to the straight diagonal instead of clamping it, so it never kinks.
 function generate(opts) {
+    if (opts.shape === "wave")
+        return wave(opts);
     var w = opts.width, h = opts.height;
     var from = opts.corners === "tl-br" ? { x: 0, y: 0 } : { x: 0, y: h };
     var to = opts.corners === "tl-br" ? { x: w, y: h } : { x: w, y: 0 };
@@ -74,6 +80,47 @@ function generate(opts) {
     var drift0 = v[0], drift1 = v[n];
     for (var q = 0; q <= n; q++)
         v[q] -= drift0 + (drift1 - drift0) * q / n;
+
+    return build(from, to, dir, normal, length, v, anchors);
+}
+
+function wave(opts) {
+    var w = opts.width, h = opts.height;
+    var from = opts.corners === "tl-br" ? { x: 0, y: 0 } : { x: 0, y: h };
+    var to = opts.corners === "tl-br" ? { x: w, y: h } : { x: w, y: 0 };
+    var length = Math.hypot(to.x - from.x, to.y - from.y);
+    var dir = { x: (to.x - from.x) / length, y: (to.y - from.y) / length };
+    var normal = { x: -dir.y, y: dir.x };
+
+    var n = SAMPLES;
+    var du = length / n;
+    var phase = mulberry32(opts.seed)() * 2 * Math.PI;
+    var waveLength = Math.max(40, opts.waveLength);
+    var v = new Array(n + 1);
+    for (var i = 0; i <= n; i++)
+        v[i] = opts.waveHeight * Math.sin(2 * Math.PI * i * du / waveLength + phase);
+
+    // Ease into each flat stretch over half a wavelength, and to nothing at both corners.
+    var ease = waveLength / 2;
+    function smooth(x) {
+        x = Math.max(0, Math.min(1, x));
+        return x * x * (3 - 2 * x);
+    }
+    var flats = opts.flats || [];
+    for (var j = 0; j <= n; j++) {
+        var u = j * du;
+        var keep = smooth(Math.min(u, length - u) / ease);
+        for (var f = 0; f < flats.length; f++)
+            keep = Math.min(keep, smooth((Math.abs(u - flats[f].t * length) - flats[f].halfLength) / ease));
+        v[j] *= keep;
+    }
+
+    return build(from, to, dir, normal, length, v, opts.anchors || []);
+}
+
+function build(from, to, dir, normal, length, v, anchors) {
+    var n = SAMPLES;
+    var du = length / n;
 
     function pointAt(t) {
         var u = Math.max(0, Math.min(1, t)) * length;

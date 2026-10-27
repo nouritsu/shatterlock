@@ -55,6 +55,7 @@ re-read whenever it changes. Unknown keys and wrong types are logged and fall ba
 | `rift.seed` | `1701` | number, or `random` for a new crack every time |
 | `rift.width` | `170` | gap between the halves, px |
 | `rift.jaggedness` | `0.6` | 0 … 1 |
+| `rift.shape` | `jagged` | `wave`: a smooth wave (`rift.waveLength`, `rift.waveHeight` px), calm in the middle |
 | `animation.*` | | `crackSpread`, `spreadMs`, `openMs`, `overshoot`, `closeMs`, `holdMs` |
 | `fx.background` / `edge` / `opening` | `void` / `glow` / `none` | built-in, `file.frag`, or `random` |
 | `fx.pool.<slot>` | | candidates for `random` |

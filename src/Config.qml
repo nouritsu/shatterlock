@@ -23,6 +23,7 @@ Singleton {
     // Keys whose values must be one of these.
     readonly property var choices: ({
             "rift.corners": ["bl-tr", "tl-br"],
+            "rift.shape": ["jagged", "wave"],
             "idle": ["unmapped", "mapped"],
             "lock.blur": ["void", "frosted", "glass"],
             "motion": ["full", "reduced"]

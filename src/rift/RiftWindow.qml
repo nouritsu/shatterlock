@@ -93,7 +93,7 @@ PanelWindow {
             visible = keepMapped;
     }
 
-    // Where the action buttons sit along the crack; the crack is flattened under each of them.
+    // Where the action buttons sit along the crack; a jagged crack is flattened under each of them.
     readonly property real buttonPitch: 210
     readonly property real buttonLength: 150
     readonly property real buttonThickness: 104
@@ -327,7 +327,10 @@ PanelWindow {
             height: h,
             corners: cfg.rift?.corners ?? "bl-tr",
             seed: seed,
+            shape: cfg.rift?.shape ?? "jagged",
             jaggedness: cfg.rift?.jaggedness ?? 0.6,
+            waveLength: cfg.rift?.waveLength ?? 440,
+            waveHeight: cfg.rift?.waveHeight ?? 28,
             anchors: anchors,
             anchorHalfLength: buttonLength / 2 + 10,
             anchorSlack: Math.max(3, (gap - buttonThickness) / 2 - 6),
