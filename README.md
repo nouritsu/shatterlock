@@ -57,6 +57,7 @@ re-read whenever it changes. Unknown keys and wrong types are logged and fall ba
 | `rift.jaggedness` | `0.6` | 0 … 1 |
 | `rift.shape` | `jagged` | `wave`: a smooth wave (`rift.waveLength`, `rift.waveHeight` px), calm in the middle |
 | `rift.seam` | `crack` | `sweep`: a line in the accent colour runs along it before the halves part, and their edges stay clean |
+| `menu.buttons` | `glow` | `material`: icon buttons in tonal circles, no labels; a held one counts down in place of its icon |
 | `animation.*` | | `crackSpread`, `spreadMs`, `openMs`, `overshoot`, `closeMs`, `holdMs` |
 | `fx.background` / `edge` / `opening` | `void` / `glow` / `none` | built-in, `file.frag`, or `random` |
 | `fx.pool.<slot>` | | candidates for `random` |

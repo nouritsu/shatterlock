@@ -47,6 +47,9 @@
     "waveHeight": 28,
     "seam": "crack"
   },
+  "menu": {
+    "buttons": "glow"
+  },
   "animation": {
     "crackSpread": true,
     "spreadMs": 120,

@@ -65,6 +65,9 @@ PanelWindow {
     property string iconFamily
     property string labelFamily
 
+    // Material Design pieces of the look.
+    readonly property bool materialButtons: cfg.menu?.buttons === "material"
+
     // An action was chosen (and confirmed, if it needs holding).
     signal triggered(string id)
 
@@ -94,9 +97,9 @@ PanelWindow {
     }
 
     // Where the action buttons sit along the crack; a jagged crack is flattened under each of them.
-    readonly property real buttonPitch: 210
-    readonly property real buttonLength: 150
-    readonly property real buttonThickness: 104
+    readonly property real buttonPitch: materialButtons ? 120 : 210
+    readonly property real buttonLength: materialButtons ? 80 : 150
+    readonly property real buttonThickness: materialButtons ? 80 : 104
 
     // Animated state, read by every shader layer (fx/SlotLayer.qml).
     property real progress: 0      // 0 closed .. 1 open
@@ -975,6 +978,8 @@ PanelWindow {
         pulseMs: 240 * win.slowmo
         interactive: win.phase === "opening" || win.phase === "open"
         accent: win.accent
+        material: win.materialButtons
+        roles: win.roles
         iconFamily: win.iconFamily
         labelFamily: win.labelFamily
         onFire: id => win.fire(id)
@@ -1064,6 +1069,8 @@ PanelWindow {
         appear: win.phase === "firing" && win.statusText !== "" ? 1 : 0
         accent: win.accent
         family: win.labelFamily
+        material: win.materialButtons
+        roles: win.roles
 
         Behavior on appear {
             NumberAnimation {
@@ -1081,6 +1088,8 @@ PanelWindow {
         appear: win.errorText !== "" && win.phase === "open" ? 1 : 0
         accent: win.accent
         family: win.labelFamily
+        material: win.materialButtons
+        roles: win.roles
 
         Behavior on appear {
             NumberAnimation {

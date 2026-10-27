@@ -25,6 +25,7 @@ Singleton {
             "rift.corners": ["bl-tr", "tl-br"],
             "rift.shape": ["jagged", "wave"],
             "rift.seam": ["crack", "sweep"],
+            "menu.buttons": ["glow", "material"],
             "idle": ["unmapped", "mapped"],
             "lock.blur": ["void", "frosted", "glass"],
             "motion": ["full", "reduced"]

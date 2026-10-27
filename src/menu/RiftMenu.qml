@@ -18,6 +18,8 @@ Item {
     property color accent: "#cba6f7"
     property string iconFamily
     property string labelFamily
+    property bool material: false // Material icon buttons (config menu.buttons)
+    property var roles: ({})      // Material colour roles, for those
 
     property int selected: -1
     property int holdIndex: -1
@@ -78,6 +80,7 @@ Item {
 
     // Index of the button under a point in menu coordinates, or -1.
     function indexAt(x, y) {
+        const buttons = menu.material ? materialButtons : glowButtons;
         for (let i = 0; i < buttons.count; i++) {
             const b = buttons.itemAt(i);
             if (b && b.appear > 0.5 && b.contains(b.mapFromItem(menu, x, y)))
@@ -146,15 +149,19 @@ Item {
             fire(id);
     }
 
+    // The buttons fade in one after another.
+    readonly property real stagger: 0.12
+    function appearOf(index) {
+        return Math.max(0, Math.min(1, appear * (1 + stagger * (actions.length - 1)) - stagger * index));
+    }
+
     Repeater {
-        id: buttons
-        model: menu.actions
+        id: glowButtons
+        model: menu.material ? [] : menu.actions
 
         ActionButton {
             required property var modelData
             required property int index
-
-            readonly property real stagger: 0.12
 
             x: (menu.points[index]?.x ?? 0) - width / 2
             y: (menu.points[index]?.y ?? 0) - height / 2
@@ -167,8 +174,32 @@ Item {
             holdProgress: menu.chargeIndex === index ? menu.charge : 0
             holdLeft: menu.holdIndex === index && holdAnim.running ? menu.holdMs * (1 - menu.holdProgress) : -1
             pulse: menu.pulseIndex === index ? menu.pulse : 0
-            appear: Math.max(0, Math.min(1, menu.appear * (1 + stagger * (menu.actions.length - 1)) - stagger * index))
+            appear: menu.appearOf(index)
             accent: menu.accent
+            iconFamily: menu.iconFamily
+            labelFamily: menu.labelFamily
+        }
+    }
+
+    Repeater {
+        id: materialButtons
+        model: menu.material ? menu.actions : []
+
+        MaterialButton {
+            required property var modelData
+            required property int index
+
+            x: (menu.points[index]?.x ?? 0) - width / 2
+            y: (menu.points[index]?.y ?? 0) - height / 2
+            rotation: menu.angle
+            icon: modelData.icon ?? ""
+            selected: menu.selected === index
+            holdProgress: menu.chargeIndex === index ? menu.charge : 0
+            holdLeft: menu.holdIndex === index && holdAnim.running ? menu.holdMs * (1 - menu.holdProgress) : -1
+            pulse: menu.pulseIndex === index ? menu.pulse : 0
+            appear: menu.appearOf(index)
+            accent: menu.accent
+            roles: menu.roles
             iconFamily: menu.iconFamily
             labelFamily: menu.labelFamily
         }
