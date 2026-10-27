@@ -273,6 +273,7 @@ ShellRoot {
         function stats(): string {
             return JSON.stringify(Object.assign({
                 shaderTime: rift.time,
+                style: rift.cfg.style,
                 openFrames: rift.openFrames,
                 live: rift.live,
                 capturing: rift.capturingLive,
@@ -300,6 +301,7 @@ ShellRoot {
                 configPath: Config.userPath,
                 packagedSettings: Config.packagedPath,
                 configReady: Config.ready,
+                style: Config.current.style ?? "rift",
                 live: Config.current.live ?? false,
                 accent: Theme.accent.toString(),
                 capabilities: runner.capabilities,

@@ -1,4 +1,5 @@
 {
+  "style": "rift",
   "actions": ["lock", "suspend", "logout", "restart", "shutdown", "hibernate", "firmware"],
   "actionDefs": {
     "lock": {

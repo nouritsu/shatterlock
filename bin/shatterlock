@@ -23,6 +23,7 @@ commands:
   compile <file.frag>     compile a custom slot shader and print any errors
 
 options for open/toggle (apply to that one open only):
+  --style rift|material   look: the torn rift, or Material Design (config's "style")
   --actions a,b,c         actions to show, in order
   --seed N|random         crack seed
   --corners bl-tr|tl-br   crack direction (corner to corner)
@@ -44,6 +45,10 @@ overrides() {
     add() { out="${out:+$out,}$1"; }
     while [ $# -gt 0 ]; do
         case $1 in
+            --style)
+                [ $# -ge 2 ] || die "--style needs a value"
+                case $2 in rift|material) ;; *) die "--style must be rift or material" ;; esac
+                add "\"style\":$(json_str "$2")"; shift 2 ;;
             --actions)
                 [ $# -ge 2 ] || die "--actions needs a value"
                 list=$(printf '%s\n' "$2" | tr ',' '\n' | while read -r a; do [ -n "$a" ] && json_str "$a" && printf ','; done)

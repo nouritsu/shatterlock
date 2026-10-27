@@ -8,6 +8,9 @@ slams it shut and you're back.
 Built on [Quickshell](https://quickshell.org) (QML + GLSL), run as a small resident daemon.
 
 - Crack from a seed (stable layout) or `random`; bottom-left→top-right or top-left→bottom-right
+- Two looks: the torn rift, or `"style": "material"` (Material Design: a smooth wave, sheets that
+  lift with shadows, tonal icon buttons with a focus ring and a progress ring, M3 motion and DMS's
+  Material colour roles)
 - Three effect slots — **background** (`void`, `image`, `surface`), **edge** (`glow`, `arcs`,
   `molten`, `glitch`, `elevation`), **opening** (`none`, `shards`, `glitch`, `molten`) — each a
   built-in, your own GLSL, or `random` from a pool
@@ -33,8 +36,9 @@ Bind `shatterlock toggle` in niri — [docs/niri.md](docs/niri.md).
 
 ```
 shatterlock daemon [--foreground]
-shatterlock open|toggle [--actions a,b,c] [--seed N|random] [--corners bl-tr|tl-br]
-                        [--width PX] [--background X] [--edge X] [--opening X] [--dry-run]
+shatterlock open|toggle [--style rift|material] [--actions a,b,c] [--seed N|random]
+                        [--corners bl-tr|tl-br] [--width PX] [--background X] [--edge X]
+                        [--opening X] [--dry-run]
 shatterlock lock [--preview|--now]
 shatterlock close | reload | status | stats | config [opts]
 shatterlock compile <file.frag>
@@ -49,6 +53,7 @@ re-read whenever it changes. Unknown keys and wrong types are logged and fall ba
 
 | Key | Default | |
 |---|---|---|
+| `style` | `rift` | `material` turns on the Material Design look: the settings in [config/presets/material.json](config/presets/material.json), under your own |
 | `actions` | all seven | which actions to show, in order |
 | `actionDefs.<id>` | | `label`, `icon` (Material Symbols name), `key`, `confirm` (`instant`/`hold`), `command` (argv), `after` (`vanish`: close then run; `stay`: show `status` while it runs), `requires` (logind `Can…` check). Add your own ids for custom actions. |
 | `rift.corners` | `bl-tr` | crack direction |

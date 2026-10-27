@@ -65,7 +65,7 @@ PanelWindow {
     property string iconFamily
     property string labelFamily
 
-    // Material Design pieces of the look.
+    // Material Design pieces of the look (config "style": "material" turns them all on).
     readonly property bool materialButtons: cfg.menu?.buttons === "material"
     readonly property bool materialMotion: cfg.animation?.easing === "material"
     // The slam shut settles with a small shake, except with Material motion.

@@ -1,0 +1,21 @@
+{
+  "rift": {
+    "shape": "wave",
+    "seam": "sweep"
+  },
+  "menu": {
+    "buttons": "material"
+  },
+  "animation": {
+    "spreadMs": 150,
+    "openMs": 350,
+    "closeMs": 200,
+    "overshoot": 0,
+    "easing": "material"
+  },
+  "fx": {
+    "background": "surface",
+    "edge": "elevation",
+    "opening": "none"
+  }
+}

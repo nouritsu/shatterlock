@@ -4,7 +4,8 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// The effective configuration, in layers: config/default.json, then settings baked into the package
+// The effective configuration, in layers: config/default.json, then the preset for the chosen "style"
+// (config/presets/<style>.json, only the keys it changes), then settings baked into the package
 // (SHATTERLOCK_SETTINGS, see nix/package.nix), then the user's config.json, which is watched and
 // re-read on change. resolve(overrides) layers one open's CLI flags on top.
 //
@@ -20,8 +21,12 @@ Singleton {
     property var current: ({})
     property bool ready: false
 
+    // The parsed layers the current config was built from, kept so one open can pick another style.
+    property var layers: ({})
+
     // Keys whose values must be one of these.
     readonly property var choices: ({
+            "style": ["rift", "material"],
             "rift.corners": ["bl-tr", "tl-br"],
             "rift.shape": ["jagged", "wave"],
             "rift.seam": ["crack", "sweep"],
@@ -39,15 +44,30 @@ Singleton {
 
     function reload() {
         defaultsFile.reload();
+        materialFile.reload();
         packagedFile.reload();
         userFile.reload();
     }
 
     // Returns a copy of the current config with dotted-path overrides applied,
-    // e.g. {"rift.seed": "random", "fx.edge": "arcs", "dryRun": true}.
+    // e.g. {"rift.seed": "random", "fx.edge": "arcs", "dryRun": true}. A "style" override rebuilds
+    // it from the layers with that style's preset.
     function resolve(overrides) {
-        const cfg = clone(current);
+        const style = overrides?.style;
+        let cfg;
+        if (style !== undefined && style !== current.style) {
+            if (choices.style.includes(style)) {
+                cfg = sanitize(compose(style));
+            } else {
+                console.warn(`shatterlock: override "style" must be one of ${choices.style.join(", ")}, ignored`);
+                cfg = clone(current);
+            }
+        } else {
+            cfg = clone(current);
+        }
         for (const key of Object.keys(overrides ?? {})) {
+            if (key === "style")
+                continue;
             const path = key.split(".");
             let parent = cfg;
             for (let i = 0; i < path.length - 1 && parent; i++)
@@ -79,11 +99,42 @@ Singleton {
         const user = parse(userFile, userPath);
         if (packaged === null || user === null)
             return;
+        let material;
+        try {
+            material = JSON.parse(materialFile.text());
+        } catch (e) {
+            console.error(`shatterlock: the material preset is broken: ${e.message}`);
+            material = {};
+        }
 
         defaults = defs;
-        current = sanitize(merge(merge(defs, packaged, ""), user, ""));
+        layers = {
+            defs: defs,
+            presets: {
+                material: material
+            },
+            packaged: packaged,
+            user: user
+        };
+        current = sanitize(compose(styleOf(user) ?? styleOf(packaged) ?? defs.style));
         ready = true;
         reloaded();
+    }
+
+    function styleOf(layer) {
+        return isObject(layer) && typeof layer.style === "string" ? layer.style : undefined;
+    }
+
+    // The config for a style: defaults, that style's preset, packaged settings, the user's file.
+    // (An unknown style is reported by sanitize and falls back to the default's.)
+    function compose(style) {
+        let cfg = layers.defs;
+        const preset = layers.presets?.[style];
+        if (preset)
+            cfg = merge(cfg, preset, "");
+        cfg = merge(merge(cfg, layers.packaged, ""), layers.user, "");
+        cfg.style = style;
+        return cfg;
     }
 
     // A layer's JSON: {} when absent or empty, null (keep the previous config) when it doesn't parse.
@@ -191,6 +242,13 @@ Singleton {
     FileView {
         id: defaultsFile
         path: Quickshell.shellPath("../config/default.json")
+        blockLoading: true
+        onLoaded: rebuildSoon.restart()
+    }
+
+    FileView {
+        id: materialFile
+        path: Quickshell.shellPath("../config/presets/material.json")
         blockLoading: true
         onLoaded: rebuildSoon.restart()
     }
