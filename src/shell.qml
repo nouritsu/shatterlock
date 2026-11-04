@@ -308,7 +308,16 @@ ShellRoot {
                 runnerBusy: runner.busy,
                 lock: {
                     pamReady: locker.pamReady,
-                    fingerprintReady: locker.fingerprintReady,
+                    methods: locker.methods.map(m => ({
+                                id: m.name,
+                                kind: m.kind,
+                                service: m.service,
+                                ready: m.ready,
+                                present: m.present,
+                                status: m.status,
+                                message: m.message
+                            })),
+                    securityKeys: locker.keys.names,
                     sessionLocked: locker.sessionLocked,
                     preview: locker.preview,
                     busy: locker.busy,

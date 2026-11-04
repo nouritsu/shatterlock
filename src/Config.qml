@@ -39,7 +39,22 @@ Singleton {
         })
 
     // Objects that may gain new keys (e.g. user-defined actions).
-    readonly property var openMaps: ["actionDefs"]
+    readonly property var openMaps: ["actionDefs", "lock.methodDefs"]
+    // What a lock method's kind brings when its entry doesn't say.
+    readonly property var methodKinds: ({
+            "key": {
+                icon: "security_key",
+                hint: "Touch your security key"
+            },
+            "fingerprint": {
+                icon: "fingerprint",
+                hint: ""
+            },
+            "other": {
+                icon: "passkey",
+                hint: ""
+            }
+        })
 
     signal reloaded
 
@@ -218,7 +233,61 @@ Singleton {
             }
             return true;
         });
+        sanitizeMethods(cfg.lock);
         return cfg;
+    }
+
+    // lock.methods: entries filled in from their kind, one method per PAM service (two running the
+    // same one would fight over the device).
+    function sanitizeMethods(lock) {
+        // lock.fingerprintService, from before lock.methods: the fingerprint method's service,
+        // unless another method already runs it (it was set to a security key's service then).
+        const alias = lock.fingerprintService;
+        if (alias !== "" && isObject(lock.methodDefs.fingerprint) && !lock.methods.some(id => id !== "fingerprint" && lock.methodDefs[id]?.service === alias))
+            lock.methodDefs.fingerprint.service = alias;
+
+        const services = {};
+        lock.methods = lock.methods.filter(id => {
+            const def = lock.methodDefs[id];
+            if (typeof id !== "string" || !isObject(def)) {
+                console.warn(`shatterlock: lock method "${id}" has no entry in lock.methodDefs, skipped`);
+                return false;
+            }
+            if (typeof def.service !== "string" || def.service === "") {
+                console.warn(`shatterlock: lock.methodDefs.${id}.service must name a PAM service, skipped`);
+                return false;
+            }
+            if (services[def.service] !== undefined) {
+                console.warn(`shatterlock: lock methods "${services[def.service]}" and "${id}" both use the PAM service "${def.service}"; "${id}" skipped`);
+                return false;
+            }
+            services[def.service] = id;
+            if (!(def.kind in methodKinds)) {
+                if (def.kind !== undefined)
+                    console.warn(`shatterlock: lock.methodDefs.${id}.kind must be "key", "fingerprint" or "other"; using "other"`);
+                def.kind = "other";
+            }
+            if (!["locked", "enter"].includes(def.start)) {
+                if (def.start !== undefined)
+                    console.warn(`shatterlock: lock.methodDefs.${id}.start must be "locked" or "enter"; using "locked"`);
+                def.start = "locked";
+            }
+            if (typeof def.retryMs !== "number") {
+                if (def.retryMs !== undefined)
+                    console.warn(`shatterlock: lock.methodDefs.${id}.retryMs must be a number; using 1500`);
+                def.retryMs = 1500;
+            }
+            const kind = methodKinds[def.kind];
+            if (typeof def.label !== "string" || def.label === "")
+                def.label = id;
+            if (typeof def.icon !== "string" || def.icon === "")
+                def.icon = kind.icon;
+            if (typeof def.hint !== "string")
+                def.hint = kind.hint;
+            if (typeof def.detect !== "boolean")
+                def.detect = def.kind === "key";
+            return true;
+        });
     }
 
     function compatible(base, value, path) {

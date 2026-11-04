@@ -185,17 +185,24 @@ Item {
             font.pixelSize: 13
             color: ui.material ? ui.role("on_surface_variant", "#a6adc8") : Qt.rgba(1, 1, 1, 0.65)
         }
+        // A method's prompt while it has the field, PAM's last message, or a prompt other than the
+        // password's.
         Text {
+            readonly property var method: ui.locker.inputMethod
             width: parent.width
             visible: text !== ""
             topPadding: 4
             horizontalAlignment: Text.AlignHCenter
             elide: Text.ElideRight
-            text: ui.locker.message || ui.locker.prompt
+            text: {
+                if (method)
+                    return `${method.label}: ${method.message.replace(/\s*:\s*$/, "")}`;
+                return ui.locker.message || ui.locker.prompt;
+            }
             font.family: ui.rift.labelFamily
             font.pixelSize: 13
             color: {
-                const error = ui.locker.message && ui.locker.messageIsError;
+                const error = !method && ui.locker.message && ui.locker.messageIsError;
                 if (ui.material)
                     return error ? ui.role("error", "#f2b8b5") : ui.role("on_surface_variant", "#a6adc8");
                 return error ? "#ff9a9a" : Qt.rgba(1, 1, 1, 0.5);
@@ -225,7 +232,9 @@ Item {
         focus: true
         onAccepted: ui.locker.submit(text)
         Keys.onEscapePressed: {
-            if (text.length === 0 && ui.locker.preview)
+            if (text.length === 0 && ui.locker.inputMethod)
+                ui.locker.handBack();
+            else if (text.length === 0 && ui.locker.preview)
                 ui.locker.cancelPreview();
             text = "";
         }

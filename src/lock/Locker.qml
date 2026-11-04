@@ -11,8 +11,8 @@ import "../rift"
 // shatterlock's lock screen. Locking seals the rift (RiftWindow.seal: a blur wave runs out from its
 // edges while a copy of the snapshot is taken), then an ext-session-lock covers every output: the
 // rift's output (while it is gone, the focused one) shows the same rift with the password field,
-// the others dark fog. Unlocking takes PAM (password, or fingerprint where its service exists) or
-// logind's Unlock.
+// the others dark fog. Unlocking takes the password (PAM), any of the methods in lock.methods (a
+// security key, a fingerprint: AuthMethod) or logind's Unlock.
 //
 // It never locks without /etc/pam.d/<lock.pamService>: PAM without its service file falls back to
 // "other", which denies everyone. The shell then runs the Lock action's command instead.
@@ -25,9 +25,23 @@ Scope {
     readonly property var options: cfg.lock ?? ({})
     readonly property bool enabled: options.enabled ?? true
     readonly property string pamService: options.pamService ?? "shatterlock"
-    readonly property string fingerprintService: options.fingerprintService ?? "shatterlock-fingerprint"
     readonly property bool pamReady: pamFile.loaded
-    readonly property bool fingerprintReady: fingerprintFile.loaded
+
+    // The other ways to unlock, in lock.methods order.
+    readonly property var methods: {
+        const ids = options.methods ?? [];
+        const all = methodVariants.instances;
+        const out = [];
+        for (let i = 0; i < all.length; i++)
+            out.push(all[i]);
+        return out.sort((a, b) => ids.indexOf(a.name) - ids.indexOf(b.name));
+    }
+    // The method the password field types into for now (its PIN prompt), or null: the password.
+    property var inputMethod: null
+
+    readonly property SecurityKeys keys: SecurityKeys {
+        active: locker.rift.lockPhase && locker.methods.some(m => m.detects && m.ready)
+    }
 
     // Locked for show only: the overlay plays the lock, PAM runs, but the session stays unlocked.
     property bool preview: false
@@ -106,6 +120,9 @@ Scope {
         busy = false;
         withPassword = false;
         pending = "";
+        inputMethod = null;
+        for (const m of methods)
+            m.reset();
         clearInput();
     }
 
@@ -130,6 +147,7 @@ Scope {
         startAuth();
     }
 
+    // The password's PAM conversation. The methods start on their own once locked.
     function startAuth() {
         if (!pam.active && !pam.start()) {
             busy = false;
@@ -137,13 +155,22 @@ Scope {
             message = `Can't check passwords: PAM service "${pamService}" didn't start`;
             messageIsError = true;
         }
-        if (fingerprintReady && !preview && !fingerprint.active)
-            fingerprint.start();
     }
 
     function submit(text) {
-        if (rift.phase !== "locked" || text === "" || busy)
+        if (rift.phase !== "locked" || busy)
             return;
+        if (inputMethod) { // (empty too: pam_u2f's `interactive` asks for just Enter)
+            const m = inputMethod;
+            inputMethod = null;
+            m.respond(text);
+            clearInput();
+            return;
+        }
+        if (text === "") {
+            wake();
+            return;
+        }
         busy = true;
         withPassword = true;
         message = "";
@@ -165,6 +192,31 @@ Scope {
         restartAuth.restart();
     }
 
+    // Enter in the empty field: a method that wants something typed gets the field; the others
+    // that wait for it (start "enter", or handed back with Escape) start.
+    function wake() {
+        const asking = methods.find(m => m.status === "prompt");
+        if (asking) {
+            take(asking);
+            return;
+        }
+        for (const m of methods)
+            m.wake();
+    }
+
+    function take(m) {
+        inputMethod = m;
+        clearInput();
+    }
+
+    // Escape in the empty field while a method has it: back to the password; the method stays off
+    // until Enter or a key plugged in.
+    function handBack() {
+        const m = inputMethod;
+        inputMethod = null;
+        m?.park();
+    }
+
     // Authenticated: the fog clears from the rift (on the lock surface while locked), then
     // release() gives the session back.
     function unlock() {
@@ -172,8 +224,9 @@ Scope {
             return;
         if (pam.active)
             pam.abort();
-        if (fingerprint.active)
-            fingerprint.abort();
+        for (const m of methods)
+            m.stop();
+        inputMethod = null;
         busy = false;
         pending = "";
         rift.unseal();
@@ -250,20 +303,25 @@ Scope {
         }
     }
 
-    PamContext {
-        id: fingerprint
-        config: locker.fingerprintService
-        onPamMessage: {
-            if (message && !responseRequired) {
-                locker.message = message;
-                locker.messageIsError = messageIsError;
+    Variants {
+        id: methodVariants
+        model: locker.options.methods ?? []
+
+        AuthMethod {
+            id: method
+            locker: locker
+            onSucceeded: locker.unlock()
+            onPrompting: {
+                if (method.userWoke && !locker.inputMethod)
+                    locker.take(method);
             }
-        }
-        onCompleted: result => {
-            if (result === PamResult.Success)
-                locker.unlock();
-            else if (locker.rift.phase === "locked")
-                retryFingerprint.restart();
+            // Its prompt answered, or it stopped: the field goes back to the password.
+            onStatusChanged: {
+                if (locker.inputMethod === method && method.status !== "prompt") {
+                    locker.inputMethod = null;
+                    locker.clearInput();
+                }
+            }
         }
     }
 
@@ -276,38 +334,18 @@ Scope {
         }
     }
 
-    Timer {
-        id: retryFingerprint
-        interval: 1500
-        onTriggered: {
-            if (locker.rift.phase === "locked" && !fingerprint.active)
-                fingerprint.start();
-        }
-    }
-
     FileView {
         id: pamFile
         path: "/etc/pam.d/" + locker.pamService
         printErrors: false
     }
 
-    FileView {
-        id: fingerprintFile
-        path: "/etc/pam.d/" + locker.fingerprintService
-        printErrors: false
-    }
-
-    // The service files appear after a rebuild; look again now and then until they do.
+    // The service file appears after a rebuild; look again now and then until it does.
     Timer {
         interval: 30000
         repeat: true
-        running: !locker.pamReady || !locker.fingerprintReady
-        onTriggered: {
-            if (!locker.pamReady)
-                pamFile.reload();
-            if (!locker.fingerprintReady)
-                fingerprintFile.reload();
-        }
+        running: !locker.pamReady
+        onTriggered: pamFile.reload()
     }
 
     WlSessionLock {

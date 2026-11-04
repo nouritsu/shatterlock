@@ -33,12 +33,66 @@ action's `command` instead), so add it to your NixOS config:
 security.pam.services.shatterlock = {};
 ```
 
-For a fingerprint reader, also add a fingerprint-only service; shatterlock runs it alongside the
-password:
+### Security keys and fingerprints
+
+Besides the password, the lock screen runs the methods in `lock.methods`, each through a PAM
+service of its own; whichever succeeds first unlocks. Two are built in, and each runs only once
+its service exists:
+
+- **`key`** (service `shatterlock-key`): a FIDO security key, through `pam_u2f`. It runs while a
+  key is plugged in (shatterlock watches udev for one, so nothing polls without a key) and starts
+  the moment you plug one in. The key blinks; touch it.
+- **`fingerprint`** (service `shatterlock-fingerprint`): a fingerprint reader, through fprintd.
 
 ```nix
+# a touch of a registered key unlocks (keys from pamu2fcfg, see security.pam.u2f)
+security.pam.services.shatterlock-key = {
+  u2f.enable = true;
+  unixAuth = false;
+  # pam_u2f marks every try in $XDG_RUNTIME_DIR/pam-u2f-authpending, which touch notifiers
+  # (yubikey-touch-detector) watch: they would pop up behind the lock all the while
+  rules.auth.u2f.settings.authpending_file = "";
+};
+
 security.pam.services.shatterlock-fingerprint = { unixAuth = false; fprintAuth = true; };
 ```
+
+Each service must authenticate on its own (here `unixAuth = false` keeps the password out of it:
+the password has its own field). A run that ends without unlocking (the key timed out) starts
+again after `retryMs`; one that fails at once (a key it doesn't know, a broken service) waits
+longer each time, up to 30 s.
+
+To keep the key from blinking all the while you're away, set `start` to `enter`: it then waits
+for Enter in the empty password field, or for a key to be plugged in, and tries once.
+
+```json
+{ "lock": { "methodDefs": { "key": { "start": "enter" } } } }
+```
+
+A key with a PIN (`pam_u2f`'s `pinverification`) asks for it before the touch. The PIN prompt
+never takes the password field on its own, since a password typed into it would count against
+the key's PIN tries: Enter in the empty field hands the field to it (the line under your name says
+so), Escape hands it back.
+
+Other PAM modules plug in the same way, as a method of your own:
+
+```json
+{
+  "lock": {
+    "methods": ["key", "fingerprint", "phone"],
+    "methodDefs": {
+      "phone": { "service": "shatterlock-phone", "label": "Phone", "icon": "smartphone" }
+    }
+  }
+}
+```
+
+`shatterlock lock --preview` runs the methods too, so you can try a touch without locking, and
+`shatterlock status` shows each method's state and the keys plugged in. (`lock.fingerprintService`
+from before `lock.methods` still sets the fingerprint method's service; set to a service another
+method already runs, it is ignored.)
+
+### Locking
 
 Locking happens from the rift's Lock button, `shatterlock lock`, logind (`loginctl lock-session`),
 before suspend (`lock.beforeSleep`), and after `lock.idle.ac` / `lock.idle.battery` idle seconds.

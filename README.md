@@ -19,6 +19,8 @@ Built on [Quickshell](https://quickshell.org) (QML + GLSL), run as a small resid
 - Keyboard (arrows / Tab, Enter, and the letter keys of DankMaterialShell's power menu), mouse,
   and hold-to-confirm for the destructive actions; the compositor's key binds are suspended while
   the rift is up
+- Its own lock screen (ext-session-lock + PAM): unlock with the password, a security key (a
+  touch; it notices the key being plugged in) or a fingerprint, or any PAM module you plug in
 - Follows DankMaterialShell's accent colour and font when it's there
 - ~165 fps on a 1440p/165 Hz NVIDIA setup; ~80 ms from keypress to first motion
 
@@ -73,7 +75,8 @@ re-read whenever it changes. Unknown keys and wrong types are logged and fall ba
 | `lock.enabled` | `true` | Lock uses shatterlock's own lock screen (else the Lock action's `command`) |
 | `lock.ui` | `rift` | `material`: the user block in Material colours, the password as Material's Expressive shapes (in the error colour when wrong), and Material's loading indicator while it is checked |
 | `lock.pamService` | `shatterlock` | PAM service; shatterlock won't lock unless `/etc/pam.d/<it>` exists |
-| `lock.fingerprintService` | `shatterlock-fingerprint` | optional second PAM service run alongside, for fingerprint readers |
+| `lock.methods` | `key`, `fingerprint` | other ways to unlock, run beside the password while locked; each only once `/etc/pam.d/<its service>` exists ([docs/niri.md](docs/niri.md#security-keys-and-fingerprints)) |
+| `lock.methodDefs.<id>` | | `service` (PAM service), `kind` (`key`: waits for a FIDO key to be plugged in, `fingerprint`, `other`), `label`, `icon`, `hint` (shown while it waits on you, rift UI; empty: PAM's message), `start` (`locked`: whenever locked; `enter`: on Enter in the empty field or a key plugged in, one try), `retryMs`, `detect` (`key`: run only while a key is plugged in). Built in: `key` (`shatterlock-key`), `fingerprint` (`shatterlock-fingerprint`); add your own ids for other PAM modules. |
 | `lock.blur` | `void` | how the screen is hidden while locked: `void` (dark fog), `frosted`, `glass`, `scrim` (Material: a soft blur under a dark scrim) |
 | `lock.waveMs`, `lock.width` | `900`, `250` | the blur wave's duration; the rift's width while locked |
 | `lock.idle.ac` / `lock.idle.battery` | `0` | lock after this many idle seconds (0: never) |
@@ -104,7 +107,7 @@ halves are a snapshot on stock niri).
 ## Status
 
 Working: the rift, menu, actions, effects and custom shaders, packaging, the lock screen
-(ext-session-lock + PAM, blur wave, idle and before-sleep locking), and live halves on a niri
-with the `hide-from-own-capture` patch (`nix/niri/`).
+(ext-session-lock + PAM, security keys and fingerprints, blur wave, idle and before-sleep
+locking), and live halves on a niri with the `hide-from-own-capture` patch (`nix/niri/`).
 
 MIT licence.

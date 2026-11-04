@@ -82,7 +82,18 @@
     "enabled": true,
     "ui": "rift",
     "pamService": "shatterlock",
-    "fingerprintService": "shatterlock-fingerprint",
+    "methods": ["key", "fingerprint"],
+    "methodDefs": {
+      "key": {
+        "kind": "key", "service": "shatterlock-key", "label": "Security key", "icon": "security_key",
+        "hint": "Touch your security key", "start": "locked", "retryMs": 1500, "detect": true
+      },
+      "fingerprint": {
+        "kind": "fingerprint", "service": "shatterlock-fingerprint", "label": "Fingerprint", "icon": "fingerprint",
+        "hint": "", "start": "locked", "retryMs": 1500
+      }
+    },
+    "fingerprintService": "",
     "blur": "void",
     "width": 250,
     "waveMs": 900,
