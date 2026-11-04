@@ -36,6 +36,16 @@ Scope {
             out.push(all[i]);
         return out.sort((a, b) => ids.indexOf(a.name) - ids.indexOf(b.name));
     }
+    // The first one waiting on the user (a key to touch, a finger to place): the lock screen
+    // shows its icon, and in the rift UI its hint.
+    readonly property var cue: methods.find(m => m.waiting) ?? null
+    readonly property string hint: {
+        if (!cue)
+            return "";
+        if (cue.status === "prompt")
+            return `${cue.label}: press Enter`;
+        return cue.messageIsError ? cue.message : (cue.def.hint || cue.message);
+    }
     // The method the password field types into for now (its PIN prompt), or null: the password.
     property var inputMethod: null
 

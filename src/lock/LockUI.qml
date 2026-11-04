@@ -101,6 +101,7 @@ Item {
         y: parent.height - height - 28
         visible: ui.options.showStatus ?? true
         info: ui.info
+        methods: ui.locker.methods
         accent: ui.accent
         ink: ui.ink
         iconFamily: ui.rift.iconFamily
@@ -140,6 +141,11 @@ Item {
         }
 
         Rectangle {
+            id: badge
+            // A method waiting on the user (a key to touch, a finger to place) shows its icon here,
+            // with rings pulsing out of the circle.
+            readonly property var cue: ui.rift.phase === "unlocking" ? null : ui.locker.cue
+            property real pulse: 0
             anchors.horizontalCenter: parent.horizontalCenter
             width: 72
             height: 72
@@ -148,9 +154,36 @@ Item {
             border.width: ui.material ? 0 : 1
             border.color: Qt.rgba(ui.accent.r, ui.accent.g, ui.accent.b, 0.6)
 
+            NumberAnimation on pulse {
+                running: badge.cue !== null && !ui.rift.reducedMotion && ui.visible
+                from: 0
+                to: 1
+                duration: 1800 * ui.rift.slowmo
+                loops: Animation.Infinite
+            }
+
+            Repeater {
+                model: 2
+
+                Rectangle {
+                    required property int index
+                    // Two rings half a beat apart; with reduced motion one stays put.
+                    readonly property real t: ui.rift.reducedMotion ? 0.25 : (badge.pulse + index / 2) % 1
+                    anchors.centerIn: parent
+                    visible: badge.cue !== null && (index === 0 || !ui.rift.reducedMotion)
+                    width: 72 + 52 * t
+                    height: width
+                    radius: width / 2
+                    color: "transparent"
+                    border.width: 2
+                    border.color: ui.material ? ui.role("primary", ui.accent) : ui.accent
+                    opacity: 0.8 * (1 - t) * Math.min(1, t * 8)
+                }
+            }
+
             Text {
                 anchors.centerIn: parent
-                text: "lock"
+                text: ui.rift.phase === "unlocking" ? "lock_open" : badge.cue?.icon ?? "lock"
                 font.family: ui.rift.iconFamily
                 renderType: Text.NativeRendering
                 font.pixelSize: 36
@@ -185,10 +218,12 @@ Item {
             font.pixelSize: 13
             color: ui.material ? ui.role("on_surface_variant", "#a6adc8") : Qt.rgba(1, 1, 1, 0.65)
         }
-        // A method's prompt while it has the field, PAM's last message, or a prompt other than the
-        // password's.
+        // A method's prompt while it has the field, PAM's last message, a prompt other than the
+        // password's, or (rift UI only; the Material one shows just the icon) the waiting
+        // method's hint.
         Text {
             readonly property var method: ui.locker.inputMethod
+            readonly property bool hinting: !method && !ui.locker.message && !ui.locker.prompt && !ui.material
             width: parent.width
             visible: text !== ""
             topPadding: 4
@@ -197,12 +232,12 @@ Item {
             text: {
                 if (method)
                     return `${method.label}: ${method.message.replace(/\s*:\s*$/, "")}`;
-                return ui.locker.message || ui.locker.prompt;
+                return ui.locker.message || ui.locker.prompt || (hinting ? ui.locker.hint : "");
             }
             font.family: ui.rift.labelFamily
             font.pixelSize: 13
             color: {
-                const error = !method && ui.locker.message && ui.locker.messageIsError;
+                const error = method ? false : hinting ? !!ui.locker.cue?.messageIsError : ui.locker.message && ui.locker.messageIsError;
                 if (ui.material)
                     return error ? ui.role("error", "#f2b8b5") : ui.role("on_surface_variant", "#a6adc8");
                 return error ? "#ff9a9a" : Qt.rgba(1, 1, 1, 0.5);

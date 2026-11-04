@@ -2,11 +2,13 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 
-// The lock screen's status row: network, Bluetooth, Caps Lock (while it's on) and battery.
+// The lock screen's status row: network, Bluetooth, a security key that can unlock (while one is
+// plugged in), Caps Lock (while it's on) and battery.
 Row {
     id: status
 
     required property var info
+    property var methods: [] // the lock methods (AuthMethod)
     property color accent: "#cba6f7"
     property color ink: "#eceaf4"
     property string iconFamily
@@ -42,6 +44,15 @@ Row {
         visible: status.info.hasBluetooth
         icon: status.info.bluetoothIcon
         label: status.info.bluetoothText
+    }
+    Repeater {
+        model: status.methods.filter(m => m.detects && m.ready && m.present)
+
+        Entry {
+            required property var modelData
+            icon: modelData.icon
+            label: modelData.label
+        }
     }
     Entry {
         visible: status.info.capsLock

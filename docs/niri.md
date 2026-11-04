@@ -58,9 +58,11 @@ security.pam.services.shatterlock-fingerprint = { unixAuth = false; fprintAuth =
 ```
 
 Each service must authenticate on its own (here `unixAuth = false` keeps the password out of it:
-the password has its own field). A run that ends without unlocking (the key timed out) starts
-again after `retryMs`; one that fails at once (a key it doesn't know, a broken service) waits
-longer each time, up to 30 s.
+the password has its own field). While a method waits on you, the lock in the middle of the rift
+becomes its icon with rings pulsing out of it, the rift UI says what to do ("Touch your security
+key"), and a plugged-in key shows in the status row. A run that ends without unlocking (the key
+timed out) starts again after `retryMs`; one that fails at once (a key it doesn't know, a broken
+service) waits longer each time, up to 30 s.
 
 To keep the key from blinking all the while you're away, set `start` to `enter`: it then waits
 for Enter in the empty password field, or for a key to be plugged in, and tries once.
