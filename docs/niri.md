@@ -187,7 +187,7 @@ The lock screen stays a snapshot: the halves freeze at the Lock press and come b
 you've unlocked. While the rift is open niri draws the screen a second time for every frame
 shatterlock captures, and the halves trail the real screen by about a frame.
 
-The patch is written against niri main (26.04, `f51d761`). When niri moves on and it no longer
+The patch is written against niri main (26.04, `589bc40`). When niri moves on and it no longer
 applies, the niri build fails at its patch phase; `0002` is the matching wiki page, for upstream.
 
 ## Notes

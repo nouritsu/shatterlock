@@ -18,15 +18,14 @@ like a magnifier, without seeing itself in that capture.
  src/layer/mapped.rs           | 24 ++++++++++++-
  src/layer/mod.rs              |  6 ++++
  src/layout/tile.rs            |  3 ++
- src/niri.rs                   | 66 ++++++++++++++++++++++++++---------
+ src/niri.rs                   | 67 ++++++++++++++++++++++++++---------
  src/protocols/screencopy.rs   |  5 +++
  src/render_helpers/mod.rs     |  7 ++++
- src/screencasting/mod.rs      |  1 +
- src/window/mapped.rs          |  1 +
- 13 files changed, 105 insertions(+), 17 deletions(-)
+ src/screencasting/mod.rs      |  3 ++
+ 12 files changed, 107 insertions(+), 17 deletions(-)
 
 diff --git a/niri-config/src/layer_rule.rs b/niri-config/src/layer_rule.rs
-index cf099b3..df76679 100644
+index c86225f..59083ed 100644
 --- a/niri-config/src/layer_rule.rs
 +++ b/niri-config/src/layer_rule.rs
 @@ -13,6 +13,8 @@ pub struct LayerRule {
@@ -39,10 +38,10 @@ index cf099b3..df76679 100644
      pub shadow: ShadowRule,
      #[knuffel(child)]
 diff --git a/niri-config/src/lib.rs b/niri-config/src/lib.rs
-index b8989e8..f46ac65 100644
+index 37e8f8d..cb5955d 100644
 --- a/niri-config/src/lib.rs
 +++ b/niri-config/src/lib.rs
-@@ -931,6 +931,7 @@ mod tests {
+@@ -1405,6 +1405,7 @@ mod tests {
              layer-rule {
                  match namespace="^notifications$"
                  block-out-from "screencast"
@@ -50,7 +49,7 @@ index b8989e8..f46ac65 100644
              }
  
              binds {
-@@ -1963,6 +1964,9 @@ mod tests {
+@@ -2443,6 +2444,9 @@ mod tests {
                      block_out_from: Some(
                          Screencast,
                      ),
@@ -61,10 +60,10 @@ index b8989e8..f46ac65 100644
                          off: false,
                          on: false,
 diff --git a/src/backend/tty.rs b/src/backend/tty.rs
-index c30ca6b..09e4a28 100644
+index 22e4940..6ceb4b4 100644
 --- a/src/backend/tty.rs
 +++ b/src/backend/tty.rs
-@@ -1917,6 +1917,7 @@ impl Tty {
+@@ -1942,6 +1942,7 @@ impl Tty {
              renderer: &mut renderer,
              target: RenderTarget::Output,
              xray: None,
@@ -73,10 +72,10 @@ index c30ca6b..09e4a28 100644
          let mut elements = niri.render_to_vec(ctx, output, true);
  
 diff --git a/src/backend/winit.rs b/src/backend/winit.rs
-index 624c587..da8c9f5 100644
+index 9ce0760..076190e 100644
 --- a/src/backend/winit.rs
 +++ b/src/backend/winit.rs
-@@ -312,6 +312,7 @@ impl Winit {
+@@ -327,6 +327,7 @@ impl Winit {
              renderer: self.backend.renderer(),
              target: RenderTarget::Output,
              xray: None,
@@ -97,7 +96,7 @@ index 3213235..222abbd 100644
                  let elements = data.niri.render_to_vec(ctx, &output, false);
  
 diff --git a/src/layer/mapped.rs b/src/layer/mapped.rs
-index 3f7eb18..1ac9014 100644
+index 538f5f1..98023ef 100644
 --- a/src/layer/mapped.rs
 +++ b/src/layer/mapped.rs
 @@ -3,6 +3,8 @@ use niri_config::{Config, LayerRule};
@@ -153,7 +152,7 @@ index 3f7eb18..1ac9014 100644
          }
  
 diff --git a/src/layer/mod.rs b/src/layer/mod.rs
-index 767a6b0..a454ad9 100644
+index 481426e..a89549d 100644
 --- a/src/layer/mod.rs
 +++ b/src/layer/mod.rs
 @@ -16,6 +16,9 @@ pub struct ResolvedLayerRules {
@@ -166,7 +165,7 @@ index 767a6b0..a454ad9 100644
      /// Shadow overrides.
      pub shadow: ShadowRule,
  
-@@ -66,6 +69,9 @@ impl ResolvedLayerRules {
+@@ -69,6 +72,9 @@ impl ResolvedLayerRules {
              if let Some(x) = rule.block_out_from {
                  resolved.block_out_from = Some(x);
              }
@@ -177,7 +176,7 @@ index 767a6b0..a454ad9 100644
                  resolved.geometry_corner_radius = Some(x);
              }
 diff --git a/src/layout/tile.rs b/src/layout/tile.rs
-index 7e9b653..0d2ccd5 100644
+index 9894ff8..c6f32a2 100644
 --- a/src/layout/tile.rs
 +++ b/src/layout/tile.rs
 @@ -1463,6 +1463,7 @@ impl<W: LayoutElement> Tile<W> {
@@ -205,10 +204,10 @@ index 7e9b653..0d2ccd5 100644
              Point::from((0., 0.)),
              xray_pos,
 diff --git a/src/niri.rs b/src/niri.rs
-index d7d180a..a4eae99 100644
+index f0394fc..e5abe84 100644
 --- a/src/niri.rs
 +++ b/src/niri.rs
-@@ -2313,6 +2313,7 @@ impl State {
+@@ -2362,6 +2362,7 @@ impl State {
                      target: RenderTarget::Output,
                      renderer,
                      xray: None,
@@ -216,7 +215,7 @@ index d7d180a..a4eae99 100644
                  };
  
                  self.niri.fill_xray_elements(ctx.r(), output);
-@@ -5585,10 +5586,12 @@ impl Niri {
+@@ -5763,10 +5764,12 @@ impl Niri {
              let (damage_tracker, screencopy) = queue.split();
              if let Some(screencopy) = screencopy {
                  if screencopy.output() == output {
@@ -229,7 +228,7 @@ index d7d180a..a4eae99 100644
                      };
                      let offset = screencopy.region_loc().upscale(-1);
                      let mut elements = Vec::new();
-@@ -5663,10 +5666,12 @@ impl Niri {
+@@ -5838,10 +5841,12 @@ impl Niri {
  
          self.update_render_elements(Some(output));
  
@@ -242,8 +241,8 @@ index d7d180a..a4eae99 100644
          };
          let offset = screencopy.region_loc().upscale(-1);
          let mut elements = Vec::new();
-@@ -5699,6 +5704,23 @@ impl Niri {
-         res
+@@ -5914,6 +5919,23 @@ impl Niri {
+         }
      }
  
 +    /// Returns the id of `client` if it has layer surfaces on `output` that are hidden from its
@@ -266,7 +265,7 @@ index d7d180a..a4eae99 100644
      pub fn render_for_image_copy_capture(
          &mut self,
          renderer: &mut GlesRenderer,
-@@ -5716,9 +5738,9 @@ impl Niri {
+@@ -5931,9 +5953,9 @@ impl Niri {
          let transform = output.current_transform();
  
          // Sessions with a single output only differ by whether they capture the
@@ -279,8 +278,8 @@ index d7d180a..a4eae99 100644
  
          let mut sessions = mem::take(&mut self.image_copy_sessions);
          for s in &mut sessions {
-@@ -5748,19 +5770,26 @@ impl Niri {
-             }
+@@ -5953,19 +5975,26 @@ impl Niri {
+             reset_damage_tracker_if_changed(&mut s.damage_tracker, size, scale, transform);
  
              let draw_cursor = s.session.draw_cursor();
 -            let cached = &mut cached_elements[usize::from(draw_cursor)];
@@ -319,7 +318,15 @@ index d7d180a..a4eae99 100644
  
              let (damage, states) = s.damage_tracker.damage_output(1, elements).unwrap();
              let Some(damage) = damage else {
-@@ -6186,6 +6215,7 @@ impl Niri {
+@@ -6059,6 +6088,7 @@ impl Niri {
+                 // Consistent with outputs and wlr-screencopy.
+                 target: RenderTarget::ScreenCapture,
+                 xray: None,
++                capture_client: None,
+             };
+             mapped.render_for_screen_cast(ctx, scale, &mut |elem| {
+                 elements.push(WindowCaptureRenderElement::Window(elem));
+@@ -6435,6 +6465,7 @@ impl Niri {
                      renderer,
                      target,
                      xray: None,
@@ -327,7 +334,7 @@ index d7d180a..a4eae99 100644
                  };
                  let elements = self.render_to_vec(ctx, &output, false);
                  let elements = elements.iter().rev();
-@@ -6268,6 +6298,7 @@ impl Niri {
+@@ -6517,6 +6548,7 @@ impl Niri {
              renderer,
              target: RenderTarget::ScreenCapture,
              xray: None,
@@ -335,7 +342,7 @@ index d7d180a..a4eae99 100644
          };
          let elements = self.render_to_vec(ctx, output, include_pointer);
          let elements = elements.iter().rev();
-@@ -6323,6 +6354,7 @@ impl Niri {
+@@ -6572,6 +6604,7 @@ impl Niri {
              renderer,
              target: RenderTarget::ScreenCapture,
              xray: None,
@@ -343,7 +350,7 @@ index d7d180a..a4eae99 100644
          };
          mapped.render(
              ctx,
-@@ -6501,6 +6533,7 @@ impl Niri {
+@@ -6750,6 +6783,7 @@ impl Niri {
                  renderer,
                  target: RenderTarget::ScreenCapture,
                  xray: None,
@@ -351,7 +358,7 @@ index d7d180a..a4eae99 100644
              };
              let elements = self.render_to_vec(ctx, output, include_pointer);
  
-@@ -7028,6 +7061,7 @@ impl Niri {
+@@ -7290,6 +7324,7 @@ impl Niri {
                          renderer,
                          target,
                          xray: None,
@@ -360,10 +367,10 @@ index d7d180a..a4eae99 100644
                      let elements = self.render_to_vec(ctx, &output, false);
                      let elements = elements.iter().rev();
 diff --git a/src/protocols/screencopy.rs b/src/protocols/screencopy.rs
-index 1596e6e..73366ae 100644
+index 9911cf6..2fb9f22 100644
 --- a/src/protocols/screencopy.rs
 +++ b/src/protocols/screencopy.rs
-@@ -666,6 +666,11 @@ impl Screencopy {
+@@ -658,6 +658,11 @@ impl Screencopy {
          self.info.overlay_cursor
      }
  
@@ -376,7 +383,7 @@ index 1596e6e..73366ae 100644
          self.with_damage
      }
 diff --git a/src/render_helpers/mod.rs b/src/render_helpers/mod.rs
-index 3ae027c..513d415 100644
+index ad0e012..686e37d 100644
 --- a/src/render_helpers/mod.rs
 +++ b/src/render_helpers/mod.rs
 @@ -14,6 +14,7 @@ use smithay::backend::renderer::sync::SyncPoint;
@@ -415,10 +422,18 @@ index 3ae027c..513d415 100644
      }
  }
 diff --git a/src/screencasting/mod.rs b/src/screencasting/mod.rs
-index 232b584..b6ad81f 100644
+index 3224d8c..7630ba6 100644
 --- a/src/screencasting/mod.rs
 +++ b/src/screencasting/mod.rs
-@@ -598,6 +598,7 @@ impl Niri {
+@@ -229,6 +229,7 @@ impl State {
+                     renderer,
+                     target: RenderTarget::Screencast,
+                     xray: None,
++                    capture_client: None,
+                 };
+                 let main_start = elements.len();
+                 mapped.render_for_screen_cast(ctx, scale, &mut |elem| {
+@@ -586,6 +587,7 @@ impl Niri {
                      renderer,
                      target: RenderTarget::Screencast,
                      xray: None,
@@ -426,15 +441,11 @@ index 232b584..b6ad81f 100644
                  };
                  self.render(ctx, output, false, &mut |elem| elements.push(elem.into()));
  
-diff --git a/src/window/mapped.rs b/src/window/mapped.rs
-index 785e408..ff1036a 100644
---- a/src/window/mapped.rs
-+++ b/src/window/mapped.rs
-@@ -548,6 +548,7 @@ impl Mapped {
+@@ -677,6 +679,7 @@ impl Niri {
                  renderer,
                  target: RenderTarget::Screencast,
                  xray: None,
 +                capture_client: None,
-             },
-             location,
-             scale,
+             };
+             let main_start = elements.len();
+             mapped.render_for_screen_cast(ctx, scale, &mut |elem| {
