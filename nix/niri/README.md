@@ -1,7 +1,7 @@
 # niri patch: `hide-from-own-capture`
 
 shatterlock's live halves need niri to leave the rift out of the captures shatterlock itself makes.
-These patches add that as a layer rule, against niri main (26.04, `589bc40`):
+These patches add that as a layer rule, against niri main (26.04, `04e3673`):
 
 - `0001-Add-hide-from-own-capture-layer-rule.patch`: the rule, the config test. Applied by the
   flake's `overlays.niri` and `packages.niri`.

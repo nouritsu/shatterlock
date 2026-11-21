@@ -7,11 +7,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1794481461,
-        "narHash": "sha256-2vZitM4q2Me89AEt/zciPsVs8ZUAszfLnHhTWxA+7GM=",
+        "lastModified": 1795252582,
+        "narHash": "sha256-rijXhttw+lpdo27LuzU4gC9uXvOO9pQpg5g3E/N7MD0=",
         "owner": "niri-wm",
         "repo": "niri",
-        "rev": "589bc406b45c8b89f69f9071a61d90d77336089f",
+        "rev": "04e36733a50eb6108e1fd040458f7b7bffb6d140",
         "type": "github"
       },
       "original": {

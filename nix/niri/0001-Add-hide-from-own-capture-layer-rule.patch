@@ -15,22 +15,22 @@ like a magnifier, without seeing itself in that capture.
  src/backend/tty.rs            |  1 +
  src/backend/winit.rs          |  1 +
  src/input/pick_color_grab.rs  |  1 +
- src/layer/mapped.rs           | 24 ++++++++++++-
+ src/layer/mapped.rs           | 24 +++++++++++--
  src/layer/mod.rs              |  6 ++++
  src/layout/tile.rs            |  3 ++
  src/niri.rs                   | 67 ++++++++++++++++++++++++++---------
  src/protocols/screencopy.rs   |  5 +++
  src/render_helpers/mod.rs     |  7 ++++
  src/screencasting/mod.rs      |  3 ++
- 12 files changed, 107 insertions(+), 17 deletions(-)
+ 12 files changed, 106 insertions(+), 18 deletions(-)
 
 diff --git a/niri-config/src/layer_rule.rs b/niri-config/src/layer_rule.rs
-index c86225f..59083ed 100644
+index fdf1f56f..0da6a497 100644
 --- a/niri-config/src/layer_rule.rs
 +++ b/niri-config/src/layer_rule.rs
 @@ -13,6 +13,8 @@ pub struct LayerRule {
      pub opacity: Option<f32>,
-     #[knuffel(child, unwrap(argument))]
+     #[knuffel(child)]
      pub block_out_from: Option<BlockOutFrom>,
 +    #[knuffel(child, unwrap(argument))]
 +    pub hide_from_own_capture: Option<bool>,
@@ -38,7 +38,7 @@ index c86225f..59083ed 100644
      pub shadow: ShadowRule,
      #[knuffel(child)]
 diff --git a/niri-config/src/lib.rs b/niri-config/src/lib.rs
-index 37e8f8d..cb5955d 100644
+index 767794dd..fb990619 100644
 --- a/niri-config/src/lib.rs
 +++ b/niri-config/src/lib.rs
 @@ -1405,6 +1405,7 @@ mod tests {
@@ -49,9 +49,9 @@ index 37e8f8d..cb5955d 100644
              }
  
              binds {
-@@ -2443,6 +2444,9 @@ mod tests {
-                     block_out_from: Some(
-                         Screencast,
+@@ -2450,6 +2451,9 @@ mod tests {
+                             kind: Fill,
+                         },
                      ),
 +                    hide_from_own_capture: Some(
 +                        true,
@@ -60,10 +60,10 @@ index 37e8f8d..cb5955d 100644
                          off: false,
                          on: false,
 diff --git a/src/backend/tty.rs b/src/backend/tty.rs
-index 22e4940..6ceb4b4 100644
+index d14c1f8a..3629c073 100644
 --- a/src/backend/tty.rs
 +++ b/src/backend/tty.rs
-@@ -1942,6 +1942,7 @@ impl Tty {
+@@ -1955,6 +1955,7 @@ impl Tty {
              renderer: &mut renderer,
              target: RenderTarget::Output,
              xray: None,
@@ -72,7 +72,7 @@ index 22e4940..6ceb4b4 100644
          let mut elements = niri.render_to_vec(ctx, output, true);
  
 diff --git a/src/backend/winit.rs b/src/backend/winit.rs
-index 9ce0760..076190e 100644
+index 9ce07603..076190ee 100644
 --- a/src/backend/winit.rs
 +++ b/src/backend/winit.rs
 @@ -327,6 +327,7 @@ impl Winit {
@@ -84,7 +84,7 @@ index 9ce0760..076190e 100644
          let mut elements = niri.render_to_vec(ctx, output, true);
  
 diff --git a/src/input/pick_color_grab.rs b/src/input/pick_color_grab.rs
-index 3213235..222abbd 100644
+index 32132358..222abbde 100644
 --- a/src/input/pick_color_grab.rs
 +++ b/src/input/pick_color_grab.rs
 @@ -54,6 +54,7 @@ impl PickColorGrab {
@@ -96,7 +96,7 @@ index 3213235..222abbd 100644
                  let elements = data.niri.render_to_vec(ctx, &output, false);
  
 diff --git a/src/layer/mapped.rs b/src/layer/mapped.rs
-index 538f5f1..98023ef 100644
+index 176b001e..1c32bd27 100644
 --- a/src/layer/mapped.rs
 +++ b/src/layer/mapped.rs
 @@ -3,6 +3,8 @@ use niri_config::{Config, LayerRule};
@@ -129,18 +129,18 @@ index 538f5f1..98023ef 100644
      pub fn bob_offset(&self) -> Point<f64, Logical> {
          if !self.rules.baba_is_float {
              return Point::from((0., 0.));
-@@ -192,6 +208,10 @@ impl MappedLayer {
+@@ -192,7 +208,9 @@ impl MappedLayer {
          xray_pos: XrayPos,
          push: &mut dyn FnMut(LayerSurfaceRenderElement<R>),
      ) {
-+        if self.is_hidden_from_capture(ctx.capture_client) {
-+            return;
-+        }
-+
-         let scale = Scale::from(self.scale);
-         let alpha = self.rules.opacity.unwrap_or(1.).clamp(0., 1.);
+-        if ctx.target.should_hide(self.rules.block_out_from) {
++        if ctx.target.should_hide(self.rules.block_out_from)
++            || self.is_hidden_from_capture(ctx.capture_client)
++        {
+             return;
+         }
  
-@@ -263,7 +283,9 @@ impl MappedLayer {
+@@ -267,7 +285,9 @@ impl MappedLayer {
          xray_pos: XrayPos,
          push: &mut dyn FnMut(LayerSurfaceRenderElement<R>),
      ) {
@@ -152,7 +152,7 @@ index 538f5f1..98023ef 100644
          }
  
 diff --git a/src/layer/mod.rs b/src/layer/mod.rs
-index 481426e..a89549d 100644
+index 481426ed..a89549d0 100644
 --- a/src/layer/mod.rs
 +++ b/src/layer/mod.rs
 @@ -16,6 +16,9 @@ pub struct ResolvedLayerRules {
@@ -176,10 +176,10 @@ index 481426e..a89549d 100644
                  resolved.geometry_corner_radius = Some(x);
              }
 diff --git a/src/layout/tile.rs b/src/layout/tile.rs
-index 9894ff8..c6f32a2 100644
+index 2ff84fa2..04e21d70 100644
 --- a/src/layout/tile.rs
 +++ b/src/layout/tile.rs
-@@ -1463,6 +1463,7 @@ impl<W: LayoutElement> Tile<W> {
+@@ -1469,6 +1469,7 @@ impl<W: LayoutElement> Tile<W> {
                  target: RenderTarget::Output,
                  renderer,
                  xray: xray.as_deref(),
@@ -187,7 +187,7 @@ index 9894ff8..c6f32a2 100644
              },
              Point::from((0., 0.)),
              xray_pos,
-@@ -1514,6 +1515,7 @@ impl<W: LayoutElement> Tile<W> {
+@@ -1520,6 +1521,7 @@ impl<W: LayoutElement> Tile<W> {
                          target: RenderTarget::Output,
                          renderer,
                          xray: Some(xray),
@@ -195,7 +195,7 @@ index 9894ff8..c6f32a2 100644
                      },
                      Point::from((0., 0.)),
                      xray_pos,
-@@ -1534,6 +1536,7 @@ impl<W: LayoutElement> Tile<W> {
+@@ -1540,6 +1542,7 @@ impl<W: LayoutElement> Tile<W> {
                  target: RenderTarget::Screencast,
                  renderer,
                  xray: xray.as_deref(),
@@ -204,10 +204,10 @@ index 9894ff8..c6f32a2 100644
              Point::from((0., 0.)),
              xray_pos,
 diff --git a/src/niri.rs b/src/niri.rs
-index f0394fc..e5abe84 100644
+index 9e32795f..943ec243 100644
 --- a/src/niri.rs
 +++ b/src/niri.rs
-@@ -2362,6 +2362,7 @@ impl State {
+@@ -2372,6 +2372,7 @@ impl State {
                      target: RenderTarget::Output,
                      renderer,
                      xray: None,
@@ -215,7 +215,7 @@ index f0394fc..e5abe84 100644
                  };
  
                  self.niri.fill_xray_elements(ctx.r(), output);
-@@ -5763,10 +5764,12 @@ impl Niri {
+@@ -5811,10 +5812,12 @@ impl Niri {
              let (damage_tracker, screencopy) = queue.split();
              if let Some(screencopy) = screencopy {
                  if screencopy.output() == output {
@@ -228,7 +228,7 @@ index f0394fc..e5abe84 100644
                      };
                      let offset = screencopy.region_loc().upscale(-1);
                      let mut elements = Vec::new();
-@@ -5838,10 +5841,12 @@ impl Niri {
+@@ -5886,10 +5889,12 @@ impl Niri {
  
          self.update_render_elements(Some(output));
  
@@ -241,7 +241,7 @@ index f0394fc..e5abe84 100644
          };
          let offset = screencopy.region_loc().upscale(-1);
          let mut elements = Vec::new();
-@@ -5914,6 +5919,23 @@ impl Niri {
+@@ -5961,6 +5966,23 @@ impl Niri {
          }
      }
  
@@ -265,7 +265,7 @@ index f0394fc..e5abe84 100644
      pub fn render_for_image_copy_capture(
          &mut self,
          renderer: &mut GlesRenderer,
-@@ -5931,9 +5953,9 @@ impl Niri {
+@@ -5978,9 +6000,9 @@ impl Niri {
          let transform = output.current_transform();
  
          // Sessions with a single output only differ by whether they capture the
@@ -278,7 +278,7 @@ index f0394fc..e5abe84 100644
  
          let mut sessions = mem::take(&mut self.image_copy_sessions);
          for s in &mut sessions {
-@@ -5953,19 +5975,26 @@ impl Niri {
+@@ -6000,19 +6022,26 @@ impl Niri {
              reset_damage_tracker_if_changed(&mut s.damage_tracker, size, scale, transform);
  
              let draw_cursor = s.session.draw_cursor();
@@ -318,7 +318,7 @@ index f0394fc..e5abe84 100644
  
              let (damage, states) = s.damage_tracker.damage_output(1, elements).unwrap();
              let Some(damage) = damage else {
-@@ -6059,6 +6088,7 @@ impl Niri {
+@@ -6106,6 +6135,7 @@ impl Niri {
                  // Consistent with outputs and wlr-screencopy.
                  target: RenderTarget::ScreenCapture,
                  xray: None,
@@ -326,7 +326,7 @@ index f0394fc..e5abe84 100644
              };
              mapped.render_for_screen_cast(ctx, scale, &mut |elem| {
                  elements.push(WindowCaptureRenderElement::Window(elem));
-@@ -6435,6 +6465,7 @@ impl Niri {
+@@ -6482,6 +6512,7 @@ impl Niri {
                      renderer,
                      target,
                      xray: None,
@@ -334,7 +334,7 @@ index f0394fc..e5abe84 100644
                  };
                  let elements = self.render_to_vec(ctx, &output, false);
                  let elements = elements.iter().rev();
-@@ -6517,6 +6548,7 @@ impl Niri {
+@@ -6564,6 +6595,7 @@ impl Niri {
              renderer,
              target: RenderTarget::ScreenCapture,
              xray: None,
@@ -342,15 +342,15 @@ index f0394fc..e5abe84 100644
          };
          let elements = self.render_to_vec(ctx, output, include_pointer);
          let elements = elements.iter().rev();
-@@ -6572,6 +6604,7 @@ impl Niri {
+@@ -6625,6 +6657,7 @@ impl Niri {
              renderer,
-             target: RenderTarget::ScreenCapture,
+             target,
              xray: None,
 +            capture_client: None,
          };
          mapped.render(
              ctx,
-@@ -6750,6 +6783,7 @@ impl Niri {
+@@ -6803,6 +6836,7 @@ impl Niri {
                  renderer,
                  target: RenderTarget::ScreenCapture,
                  xray: None,
@@ -358,7 +358,7 @@ index f0394fc..e5abe84 100644
              };
              let elements = self.render_to_vec(ctx, output, include_pointer);
  
-@@ -7290,6 +7324,7 @@ impl Niri {
+@@ -7352,6 +7386,7 @@ impl Niri {
                          renderer,
                          target,
                          xray: None,
@@ -367,7 +367,7 @@ index f0394fc..e5abe84 100644
                      let elements = self.render_to_vec(ctx, &output, false);
                      let elements = elements.iter().rev();
 diff --git a/src/protocols/screencopy.rs b/src/protocols/screencopy.rs
-index 9911cf6..2fb9f22 100644
+index 9911cf67..2fb9f228 100644
 --- a/src/protocols/screencopy.rs
 +++ b/src/protocols/screencopy.rs
 @@ -658,6 +658,11 @@ impl Screencopy {
@@ -383,7 +383,7 @@ index 9911cf6..2fb9f22 100644
          self.with_damage
      }
 diff --git a/src/render_helpers/mod.rs b/src/render_helpers/mod.rs
-index ad0e012..686e37d 100644
+index 4caf50e2..1e178a2d 100644
 --- a/src/render_helpers/mod.rs
 +++ b/src/render_helpers/mod.rs
 @@ -14,6 +14,7 @@ use smithay::backend::renderer::sync::SyncPoint;
@@ -422,7 +422,7 @@ index ad0e012..686e37d 100644
      }
  }
 diff --git a/src/screencasting/mod.rs b/src/screencasting/mod.rs
-index 3224d8c..7630ba6 100644
+index 3224d8cc..7630ba6d 100644
 --- a/src/screencasting/mod.rs
 +++ b/src/screencasting/mod.rs
 @@ -229,6 +229,7 @@ impl State {
